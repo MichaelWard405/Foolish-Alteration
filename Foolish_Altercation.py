@@ -18,27 +18,11 @@ KEYBINDS_FILE = HYPR_DIR / "ui_keybinds.conf"
 THEME_FILE = HYPR_DIR / "ui_theme.conf"
 LAYOUT_FILE = HYPR_DIR / "ui_layout.conf"
 
-# Hardcoded Repository
-DEFAULT_REPO_URL = "https://github.com/MichaelWard405/Arch-Themes-Dotfiles"
+# YOUR GitHub Repository
+DEFAULT_REPO_URL = "https://github.com/MichaelWard405/Foolish-Alteration"
 
 HYPR_DIR.mkdir(parents=True, exist_ok=True)
 REPO_DIR.parent.mkdir(parents=True, exist_ok=True)
-
-# --- Fallback Defaults (Gruvbox) ---
-GRUVBOX_FALLBACK = {
-    "gtk_theme": "Gruvbox-Dark",
-    "icon_theme": "Gruvbox-Plus-Dark",
-    "cursor_theme": "capitaine-cursors-gruvbox",
-    "font_name": "JetBrainsMono Nerd Font 11",
-    # Added qt5-styleplugins so Qt can read GTK styles automatically
-    "dependencies": ["gruvbox-dark-gtk", "gruvbox-plus-icon-theme", "capitaine-cursors-gruvbox", "ttf-jetbrains-mono-nerd", "qt5ct", "qt5-styleplugins"],
-    "colors": {
-        "active_border": "d3869b",
-        "inactive_border": "282828",
-        "background": "1d2021",
-        "foreground": "ebdbb2"
-    }
-}
 
 class HyprSetupWizard:
     def __init__(self, root):
@@ -46,14 +30,15 @@ class HyprSetupWizard:
         self.root.title("Hyprland Universal Setup Wizard")
         self.root.geometry("600x500")
         
-        self.themes = ["Gruvbox-Fallback"]
-        self.layouts = ["Gruvbox-Fallback"]
-        self.keybinds = ["Gruvbox-Fallback"]
+        # Empty arrays to be populated strictly from GitHub
+        self.themes = []
+        self.layouts = []
+        self.keybinds = []
         self.package_packs = []
         
-        self.selected_theme = "Gruvbox-Fallback"
-        self.selected_layout = "Gruvbox-Fallback"
-        self.selected_keybind = "Gruvbox-Fallback"
+        self.selected_theme = ""
+        self.selected_layout = ""
+        self.selected_keybind = ""
         self.selected_packages = [] 
         
         self.current_step = 1
@@ -85,7 +70,8 @@ class HyprSetupWizard:
                 else:
                     subprocess.run(["git", "clone", DEFAULT_REPO_URL, str(REPO_DIR)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 self.scan_repository_data()
-            except Exception:
+            except Exception as e:
+                print(f"Git pull/clone failed: {e}")
                 self.scan_repository_data()
             
             self.root.after(0, self.render_current_step)
@@ -97,15 +83,18 @@ class HyprSetupWizard:
         
         theme_dir = REPO_DIR / "themes"
         if theme_dir.exists():
-            self.themes = ["Gruvbox-Fallback"] + [d.name for d in theme_dir.iterdir() if d.is_dir()]
+            self.themes = [d.name for d in theme_dir.iterdir() if d.is_dir()]
+            if self.themes: self.selected_theme = self.themes[0]
 
         layout_dir = REPO_DIR / "layouts"
         if layout_dir.exists():
-            self.layouts = ["Gruvbox-Fallback"] + [f.name for f in layout_dir.glob("*.conf")]
+            self.layouts = [f.name for f in layout_dir.glob("*.conf")]
+            if self.layouts: self.selected_layout = self.layouts[0]
 
         keybind_dir = REPO_DIR / "keybinds"
         if keybind_dir.exists():
-            self.keybinds = ["Gruvbox-Fallback"] + [f.name for f in keybind_dir.glob("*.conf")]
+            self.keybinds = [f.name for f in keybind_dir.glob("*.conf")]
+            if self.keybinds: self.selected_keybind = self.keybinds[0]
 
         pkg_dir = REPO_DIR / "packages"
         if pkg_dir.exists():
@@ -140,8 +129,12 @@ class HyprSetupWizard:
         desc = ttk.Label(self.main_container, text=desc_text)
         desc.pack(pady=5)
         
+        if not items:
+            ttk.Label(self.main_container, text="⚠️ No files found in GitHub repository for this category.", foreground="red").pack(pady=10)
+            items = ["Missing Data"]
+            
         current_val = getattr(self, f"selected_{selection_type}")
-        var = tk.StringVar(value=current_val)
+        var = tk.StringVar(value=current_val if current_val else items[0])
         
         combo = ttk.Combobox(self.main_container, textvariable=var, values=items, state="readonly", width=40)
         combo.pack(pady=20)
@@ -158,6 +151,9 @@ class HyprSetupWizard:
         
         desc = ttk.Label(self.main_container, text="Check any workflow application bundles you want initialized right now:")
         desc.pack(pady=5)
+
+        if not self.package_packs:
+            ttk.Label(self.main_container, text="No package packs found in the repository.", font=("Helvetica", 10, "italic")).pack(pady=20)
 
         chk_frame = ttk.Frame(self.main_container)
         chk_frame.pack(pady=15, fill='both', expand=True)
@@ -239,19 +235,16 @@ class HyprSetupWizard:
         threading.Thread(target=runner, daemon=True).start()
 
     def resolve_theme_data(self, theme_name):
-        final_data = GRUVBOX_FALLBACK.copy()
-        if theme_name == "Gruvbox-Fallback" or not REPO_DIR.exists():
-            return final_data
+        if not theme_name or theme_name == "Missing Data":
+            return {}
             
         t_json = REPO_DIR / "themes" / theme_name / "theme.json"
         if t_json.exists():
             try:
-                user_data = json.loads(t_json.read_text())
-                final_data.update(user_data)
-                if "colors" in user_data:
-                    final_data["colors"] = {**GRUVBOX_FALLBACK["colors"], **user_data["colors"]}
-            except: pass
-        return final_data
+                return json.loads(t_json.read_text())
+            except Exception as e:
+                print(f"Error parsing JSON: {e}")
+        return {}
 
     def replace_main_hyprland_conf(self):
         main_conf = HYPR_DIR / "hyprland.conf"
@@ -277,7 +270,6 @@ input {
     sensitivity = 0
 }
 
-# DISABLE ANIME MASCOT AND LOGO
 misc {
     force_default_wallpaper = 0
     disable_hyprland_logo = true
@@ -299,6 +291,7 @@ exec-once = waybar
         main_conf.write_text(base_config)
 
     def deploy_dynamic_assets(self, theme_name):
+        if not theme_name or theme_name == "Missing Data": return
         theme_dir = REPO_DIR / "themes" / theme_name
         
         deployment_map = {
@@ -306,7 +299,9 @@ exec-once = waybar
             "vesktop.css": HOME / ".config/vesktop/themes/active_theme.css",
             "kitty.conf": HOME / ".config/kitty/theme.conf",
             "waybar_style.css": HOME / ".config/waybar/style.css",
-            "waybar_config": HOME / ".config/waybar/config"
+            "waybar_config": HOME / ".config/waybar/config",
+            "wlogout.css": HOME / ".config/wlogout/style.css",
+            "wlogout_layout": HOME / ".config/wlogout/layout"
         }
         
         vesktop_theme_dir = HOME / ".config/vesktop/themes"
@@ -321,22 +316,28 @@ exec-once = waybar
 
     def execute_local_apply(self, t_data):
         try:
+            # We use .get() to prevent the script from crashing if your JSON is missing a key
+            gtk_theme = t_data.get('gtk_theme', 'Adwaita')
+            icon_theme = t_data.get('icon_theme', 'Adwaita')
+            cursor_theme = t_data.get('cursor_theme', 'Adwaita')
+            font_name = t_data.get('font_name', 'Sans 11')
+            
             # 1. Base GTK Data
-            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", t_data['gtk_theme']])
-            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "icon-theme", t_data['icon_theme']])
-            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", t_data['cursor_theme']])
-            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "font-name", t_data['font_name']])
+            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", gtk_theme])
+            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "icon-theme", icon_theme])
+            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", cursor_theme])
+            self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "font-name", font_name])
 
             # 2. Compile custom themes and Automate Qt5ct
             colors = t_data.get("colors", {})
             self.compile_gtk_css(colors)
             self.patch_terminal_and_cli(colors)
             self.patch_qt_dolphin(colors)
-            self.patch_qt5ct(t_data) # <--- AUTOMATED QT5CT INJECTED HERE
+            self.patch_qt5ct(t_data) 
 
             # 3. Aggressively map Flatpak sandboxes
-            self.run_cmd(["flatpak", "override", "--user", f"--env=GTK_THEME={t_data['gtk_theme']}"])
-            self.run_cmd(["flatpak", "override", "--user", f"--env=ICON_THEME={t_data['icon_theme']}"])
+            self.run_cmd(["flatpak", "override", "--user", f"--env=GTK_THEME={gtk_theme}"])
+            self.run_cmd(["flatpak", "override", "--user", f"--env=ICON_THEME={icon_theme}"])
             self.run_cmd(["flatpak", "override", "--user", "--filesystem=~/.themes"])
             self.run_cmd(["flatpak", "override", "--user", "--filesystem=~/.icons"])
             self.run_cmd(["flatpak", "override", "--user", "--filesystem=xdg-config/gtk-3.0"])
@@ -355,7 +356,7 @@ exec-once = waybar
             subprocess.Popen(["waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
             self.run_cmd(["hyprctl", "reload"])
             
-            messagebox.showinfo("Success", "Compilation complete! Assets deployed and Waybar restarted.\n\nNOTE: You MUST REBOOT to apply the global Qt/Dolphin environment variables.")
+            messagebox.showinfo("Success", "Compilation complete! Your GitHub configurations have been successfully injected.")
             self.root.destroy()
         except Exception as e:
             messagebox.showerror("Error During Compilation", str(e))
@@ -443,14 +444,12 @@ exec-once = waybar
                 kdeglobals.write_text(kde_colors)
         except: pass
 
-    # --- NEW AUTOMATION FUNCTION ---
     def patch_qt5ct(self, t_data):
-        """Silently creates the config file qt5ct uses, completely bypassing the GUI."""
         qt5ct_dir = HOME / ".config/qt5ct"
         qt5ct_dir.mkdir(parents=True, exist_ok=True)
         qt5ct_conf = qt5ct_dir / "qt5ct.conf"
         
-        icon_theme = t_data.get('icon_theme', 'Gruvbox-Plus-Dark')
+        icon_theme = t_data.get('icon_theme', 'Adwaita')
         
         conf_content = f"""[Appearance]
 icon_theme={icon_theme}
@@ -459,55 +458,25 @@ style=gtk2
         qt5ct_conf.write_text(conf_content)
 
     def write_hypr_confs(self, t_data, t_dir):
-        if self.selected_layout == "Gruvbox-Fallback" or not (REPO_DIR / "layouts" / self.selected_layout).exists():
-            LAYOUT_FILE.write_text("general { layout = dwindle }")
+        # 1. Pull Layout exactly as written in GitHub
+        layout_src = REPO_DIR / "layouts" / self.selected_layout
+        if layout_src.exists():
+            LAYOUT_FILE.write_text(layout_src.read_text())
         else:
-            LAYOUT_FILE.write_text((REPO_DIR / "layouts" / self.selected_layout).read_text())
+            LAYOUT_FILE.write_text("")
 
-        if self.selected_keybind == "Gruvbox-Fallback" or not (REPO_DIR / "keybinds" / self.selected_keybind).exists():
-            default_keybinds = """$mainMod = SUPER
-$terminal = kitty
-$fileManager = dolphin
-$menu = wofi --show drun
-$browser = flatpak run app.zen_browser.zen
-$steam = flatpak run com.valvesoftware.Steam
-$discord = discord
-$Screenshot = grimblast copy area
-$logout = wlogout
-$Ide = nvim
-$git = lazygit
-
-bind = $mainMod, Q, exec, $terminal
-bind = $mainMod, C, killactive,
-bind = $mainMod, M, exit,
-bind = $mainMod, E, exec, $fileManager
-bind = $mainMod, f, togglefloating,
-bind = $mainMod, R, exec, $menu
-bind = $mainMod, P, pseudo, # dwindle
-#bind = $mainMod, J, togglesplit, # dwindle
-bind = $mainMod, b, exec, $browser
-bind = $mainMod, s, exec, $steam
-bind = $mainMod, d, exec, $discord
-bind = $mainMod, PRINT, exec, $Screenshot
-bind = $mainMod, w, exec, $logout
-bind = $mainMod, v, exec, kitty $Ide
-bind = $mainMod, g, exec, kitty $git
-
-bind = $mainMod, left, movefocus, l
-bind = $mainMod, right, movefocus, r
-bind = $mainMod, up, movefocus, u
-bind = $mainMod, down, movefocus, d
-
-bindm = $mainMod, mouse:272, movewindow
-bindm = $mainMod, mouse:273, resizewindow
-"""
-            KEYBINDS_FILE.write_text(default_keybinds)
+        # 2. Pull Keybinds exactly as written in GitHub
+        keybind_src = REPO_DIR / "keybinds" / self.selected_keybind
+        if keybind_src.exists():
+            KEYBINDS_FILE.write_text(keybind_src.read_text())
         else:
-            KEYBINDS_FILE.write_text((REPO_DIR / "keybinds" / self.selected_keybind).read_text())
+            KEYBINDS_FILE.write_text("")
 
+        # 3. Build UI Theme config
         colors = t_data.get("colors", {})
-        c_active = colors.get("active_border", "d3869b")
-        c_inactive = colors.get("inactive_border", "282828")
+        c_active = colors.get("active_border", "ffffff")
+        c_inactive = colors.get("inactive_border", "000000")
+        cursor = t_data.get('cursor_theme', 'Adwaita')
 
         compiled_hypr = f"""
 general {{
@@ -516,8 +485,8 @@ general {{
 }}
 
 env = QT_QPA_PLATFORMTHEME,qt5ct
-env = XCURSOR_THEME,{t_data['cursor_theme']}
-exec-once = hyprctl setcursor {t_data['cursor_theme']} 24
+env = XCURSOR_THEME,{cursor}
+exec-once = hyprctl setcursor {cursor} 24
 """
         wp_target = t_dir / "wallpaper.mp4"
         if wp_target.exists():
