@@ -100,12 +100,10 @@ class HyprSetupWizard:
 
         layout_dir = REPO_DIR / "layouts"
         if layout_dir.exists():
-            # Scans for directories containing layout.conf based on your GitHub structure
             self.layouts = ["Gruvbox-Fallback"] + [d.name for d in layout_dir.iterdir() if d.is_dir()]
 
         keybind_dir = REPO_DIR / "keybinds"
         if keybind_dir.exists():
-            # Scans for raw files like "Defaults"
             self.keybinds = ["Gruvbox-Fallback"] + [f.name for f in keybind_dir.iterdir() if f.is_file() and not f.name.startswith('.')]
 
         pkg_dir = REPO_DIR / "packages"
@@ -265,7 +263,7 @@ monitor=,preferred,auto,auto
 input {
     kb_layout = us
     follow_mouse = 1
-    touchpad { natural_scroll = no }
+    touchpad { natural_scroll = false }
     sensitivity = 0
 }
 
@@ -275,7 +273,7 @@ misc {
 }
 
 animations {
-    enabled = yes
+    enabled = true
     bezier = myBezier, 0.05, 0.9, 0.1, 1.05
     animation = windows, 1, 7, myBezier
     animation = windowsOut, 1, 7, default, popin 80%
@@ -314,6 +312,7 @@ animations {
             
             # Restart core UI components cleanly
             self.run_cmd(["killall", "waybar"])
+            self.run_cmd(["killall", "wofi"])
             subprocess.Popen(["waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
             self.run_cmd(["hyprctl", "reload"])
             
@@ -393,12 +392,14 @@ animations {
     def deploy_theme_assets(self, theme_dir):
         if not theme_dir.exists() or self.selected_theme == "Gruvbox-Fallback": return
         
-        # Mapped specifically to your JSON and CSS configurations
+        # Fixed: Now mapping and placing your wofi.css and wofi.json sheets
         deployment_map = {
             "waybar.css": HOME / ".config/waybar/style.css",
             "waybar.json": HOME / ".config/waybar/config",
             "wlogout.css": HOME / ".config/wlogout/style.css",
-            "wlogout.json": HOME / ".config/wlogout/layout"
+            "wlogout.json": HOME / ".config/wlogout/layout",
+            "wofi.css": HOME / ".config/wofi/style.css",
+            "wofi.json": HOME / ".config/wofi/config"
         }
         
         for filename, dest in deployment_map.items():
@@ -413,7 +414,15 @@ animations {
         if self.selected_layout == "Gruvbox-Fallback" or not layout_target.exists():
             LAYOUT_FILE.write_text("general { layout = dwindle }")
         else:
-            LAYOUT_FILE.write_text(layout_target.read_text())
+            layout_content = layout_target.read_text()
+            # Dynamic filter parsing out options deprecated or altered by Hyprland 0.55+
+            cleaned_lines = []
+            for line in layout_content.splitlines():
+                if "pseudotile" in line and "dwindle" not in line:
+                    continue  # Strip deprecated dwindle:pseudotile option entirely
+                line = line.replace("= yes", "= true").replace("= no", "= false")
+                cleaned_lines.append(line)
+            LAYOUT_FILE.write_text("\n".join(cleaned_lines))
 
         # 2. Keybinds Conf mapped to the base file (no .conf extension)
         keybind_target = REPO_DIR / "keybinds" / self.selected_keybind
