@@ -1,13 +1,13 @@
 {
-    "gtk_theme": "Gruvbox-Dark",
-    "icon_theme": "Gruvbox-Plus-Dark",
-    "cursor_theme": "capitaine-cursors-gruvbox",
-    "font_name": "JetBrainsMono Nerd Font 11",
-    "dependencies": ["gruvbox-dark-gtk", "gruvbox-plus-icon-theme", "capitaine-cursors-gruvbox", "ttf-jetbrains-mono-nerd", "qt5ct", "qt5-styleplugins", "wlogout"],
-    "colors": {
-        "active_border": "d3869b",
-        "inactive_border": "282828",
-        "background": "1d2021",
-        "foreground": "ebdbb2"
-    }
+  "name": "Gruvbox-Dark",
+  "gtk_theme": "Gruvbox-Dark",
+  "icon_theme": "Gruvbox-Dark",
+  "cursor_theme": "Adwaita",
+  "font_name": "FiraCode Nerd Font 11",
+  "colors": {
+    "background": "282828",
+    "foreground": "ebdbb2",
+    "active_border": "d3869b",
+    "inactive_border": "504945"
+  }
 }
