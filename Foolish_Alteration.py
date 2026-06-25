@@ -10,32 +10,33 @@ from pathlib import Path
 
 # --- Constants & Paths ---
 HOME = Path.home()
-NIRI_DIR = HOME / ".config/niri"
-REPO_DIR = HOME / ".local/share/niri_theme_engine/repo"
+SWAY_DIR = HOME / ".config/sway"
+REPO_DIR = HOME / ".local/share/swayfx_theme_engine/repo"
 
 # Wallpaper Cache Paths
-THEME_CACHE_MP4 = HOME / ".local/share/niri_theme_engine/current_wallpaper.mp4"
-THEME_CACHE_PNG = HOME / ".local/share/niri_theme_engine/current_wallpaper.png"
+THEME_CACHE_MP4 = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.mp4"
+THEME_CACHE_PNG = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.png"
 
-# Configuration Target
-NIRI_CONFIG = NIRI_DIR / "config.kdl"
+# Configuration Targets
+KEYBINDS_FILE = SWAY_DIR / "Foolish_Keybinds.conf"
+THEME_FILE = SWAY_DIR / "Foolish_Theme.conf"
+LAYOUT_FILE = SWAY_DIR / "Foolish_Layout.conf"
 
 # YOUR GitHub Repository
 DEFAULT_REPO_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 
-NIRI_DIR.mkdir(parents=True, exist_ok=True)
+SWAY_DIR.mkdir(parents=True, exist_ok=True)
 REPO_DIR.parent.mkdir(parents=True, exist_ok=True)
 
-class NiriSetupWizard:
+class SwayFXSetupWizard:
     def __init__(self, root):
         self.root = root
-        self.root.title("Niri Setup Engine | Foolish-Alteration")
-        self.root.geometry("600x500")
+        self.root.title("SwayFX Setup Engine | Foolish-Alteration")
+        self.root.geometry("600x450")
         
         # Strictly empty initializations; populated ONLY by GitHub
-        self.themes, self.layouts, self.keybinds, self.package_packs = [], [], [], []
+        self.themes, self.layouts, self.keybinds = [], [], []
         self.selected_theme, self.selected_layout, self.selected_keybind = "", "", ""
-        self.selected_packages = [] 
         
         self.current_step = 1
         self.main_container = ttk.Frame(self.root, padding=20)
@@ -86,10 +87,6 @@ class NiriSetupWizard:
             self.keybinds = [f.name for f in keybind_dir.iterdir() if f.is_file() and not f.name.startswith('.')]
             if self.keybinds: self.selected_keybind = self.keybinds[0]
 
-        pkg_dir = REPO_DIR / "packages"
-        if pkg_dir.exists():
-            self.package_packs = [f.stem for f in pkg_dir.glob("*.json")]
-
     def next_step(self):
         self.current_step += 1
         self.render_current_step()
@@ -101,10 +98,9 @@ class NiriSetupWizard:
     def render_current_step(self):
         self.clear_container()
         if self.current_step == 1: self.render_selection_step("Choose a Custom Theme", "Select from your custom configuration packs:", self.themes, "theme")
-        elif self.current_step == 2: self.render_selection_step("Choose a Window Layout", "Select your custom Niri window behaviors:", self.layouts, "layout")
-        elif self.current_step == 3: self.render_selection_step("Choose Operational Keybinds", "Select your Niri shortcut profile:", self.keybinds, "keybind")
-        elif self.current_step == 4: self.render_package_step()
-        elif self.current_step == 5: self.render_summary_step()
+        elif self.current_step == 2: self.render_selection_step("Choose a Window Layout", "Select your SwayFX workspace behavior:", self.layouts, "layout")
+        elif self.current_step == 3: self.render_selection_step("Choose Operational Keybinds", "Select your shortcut layout profile:", self.keybinds, "keybind")
+        elif self.current_step == 4: self.render_summary_step()
 
     def render_selection_step(self, title_text, desc_text, items, selection_type):
         ttk.Label(self.main_container, text=title_text, font=("Helvetica", 14, "bold")).pack(pady=10)
@@ -124,31 +120,9 @@ class NiriSetupWizard:
             
         self.build_navigation_buttons(save_and_next)
 
-    def render_package_step(self):
-        ttk.Label(self.main_container, text="Select Extensible Package Packs", font=("Helvetica", 14, "bold")).pack(pady=10)
-        ttk.Label(self.main_container, text="Check any workflow application bundles you want initialized right now:").pack(pady=5)
-
-        chk_frame = ttk.Frame(self.main_container)
-        chk_frame.pack(pady=15, fill='both', expand=True)
-
-        if not self.package_packs:
-            ttk.Label(chk_frame, text="No package packs found in the repository.", font=("Helvetica", 10, "italic")).pack(pady=20)
-
-        checkbox_vars = {}
-        for pack in self.package_packs:
-            var = tk.BooleanVar(value=(pack in self.selected_packages))
-            checkbox_vars[pack] = var
-            ttk.Checkbutton(chk_frame, text=f" {pack.title()} Environment Pack", variable=var).pack(anchor='w', padx=20, pady=4)
-
-        def save_and_next():
-            self.selected_packages = [pack for pack, var in checkbox_vars.items() if var.get()]
-            self.next_step()
-
-        self.build_navigation_buttons(save_and_next)
-
     def render_summary_step(self):
         ttk.Label(self.main_container, text="Review Your Completed Setup Blueprint", font=("Helvetica", 14, "bold")).pack(pady=10)
-        summary_text = f"• Selected Theme: {self.selected_theme}\n• Selected Window Layout: {self.selected_layout}\n• Selected Keybindings: {self.selected_keybind}\n• Active Additional Modules: {', '.join(self.selected_packages) if self.selected_packages else 'None'}"
+        summary_text = f"• Selected Theme: {self.selected_theme}\n• Selected Window Layout: {self.selected_layout}\n• Selected Keybindings: {self.selected_keybind}"
         ttk.Label(self.main_container, text=summary_text, justify='left', font=("Courier", 10)).pack(pady=20, fill='x')
         ttk.Button(self.main_container, text="COMPILE & INJECT BLANKET SYSTEM CONFIG", command=self.apply_engine).pack(pady=20, ipady=10, fill='x')
         self.build_navigation_buttons(None)
@@ -161,31 +135,17 @@ class NiriSetupWizard:
 
     def apply_engine(self):
         theme_data = self.resolve_theme_data(self.selected_theme)
-        deps = theme_data.get('dependencies', [])
-        
-        for pack in self.selected_packages:
-            pkg_file = REPO_DIR / "packages" / f"{pack}.json"
-            if pkg_file.exists():
-                try: deps.extend(json.loads(pkg_file.read_text()).get('packages', []))
-                except: pass
 
         self.clear_container()
-        ttk.Label(self.main_container, text="Installing Dependencies...", font=("Helvetica", 14, "bold")).pack(pady=40)
+        ttk.Label(self.main_container, text="Deploying Configurations...", font=("Helvetica", 14, "bold")).pack(pady=40)
         ttk.Label(self.main_container, text="Running silently in the background. Do not close.").pack(pady=5)
         progress = ttk.Progressbar(self.main_container, mode='indeterminate')
         progress.pack(fill='x', padx=50, pady=20)
         progress.start()
         self.root.update()
 
-        def runner():
-            try:
-                if deps: subprocess.run(["yay", "-S", "--needed", "--noconfirm"] + list(set(deps)), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                self.root.after(0, lambda: self.execute_local_apply(theme_data))
-            except Exception as e:
-                self.root.after(0, lambda: messagebox.showerror("Install Error", f"Failed to install: {e}"))
-                self.root.destroy()
-
-        threading.Thread(target=runner, daemon=True).start()
+        # No package installation, proceed directly to local apply
+        self.root.after(1000, lambda: self.execute_local_apply(theme_data))
 
     def resolve_theme_data(self, theme_name):
         if not theme_name or theme_name == "Missing Data": return {}
@@ -226,13 +186,15 @@ class NiriSetupWizard:
 
             # 3. Deploy assets written by you on GitHub
             self.deploy_github_assets(self.selected_theme)
-            self.build_niri_config(t_data)
+            self.write_sway_confs(t_data)
+            self.replace_main_sway_conf()
             
-            # 4. Refresh Environments
+            # 4. Refresh Environments (SwayFX reload and Waybar)
             self.run_cmd(["pkill", "waybar"])
             subprocess.Popen(["waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            self.run_cmd(["swaymsg", "reload"])
             
-            messagebox.showinfo("Success", "Assets deployed! Niri auto-reloads automatically. Your custom styles, icons, and layouts are now active.")
+            messagebox.showinfo("Success", "Assets deployed! SwayFX has been reloaded. Your custom styles, icons, and layout updates are now active.")
             self.root.destroy()
         except Exception as e:
             messagebox.showerror("Error During Compilation", str(e))
@@ -310,85 +272,92 @@ class NiriSetupWizard:
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(source, dest)
 
-    def build_niri_config(self, t_data):
-        # Read components from repo
-        layout_src = REPO_DIR / "layouts" / self.selected_layout / "layout.kdl"
-        layout_data = layout_src.read_text() if layout_src.exists() else "// No layout.kdl found in repository"
+    def write_sway_confs(self, t_data):
+        layout_src = REPO_DIR / "layouts" / self.selected_layout / "layout.conf"
+        LAYOUT_FILE.write_text(layout_src.read_text() if layout_src.exists() else "")
         
         keybind_src = REPO_DIR / "keybinds" / self.selected_keybind
-        keybind_data = keybind_src.read_text() if keybind_src.exists() else "// No keybind configuration found in repository"
+        KEYBINDS_FILE.write_text(keybind_src.read_text() if keybind_src.exists() else "")
 
-        # Resolve Theme Colors
         colors = t_data.get("colors", {})
-        c_active = colors.get("active_border", "ffffff")
-        c_inactive = colors.get("inactive_border", "000000")
+        c_active = f"#{colors.get('active_border', 'ffffff')}"
+        c_inactive = f"#{colors.get('inactive_border', '000000')}"
+        c_bg = f"#{colors.get('background', '282828')}"
+        c_fg = f"#{colors.get('foreground', 'ebdbb2')}"
         cursor = t_data.get('cursor_theme', 'Adwaita')
 
-        # Live Wallpaper Swap & Boot Entry Generation
+        # Sway / SwayFX specific styling
+        compiled_sway = f"""# --- SwayFX Aesthetics ---
+corner_radius 10
+blur enable
+blur_passes 2
+shadows enable
+
+# --- Colors ---
+# class                 border  bground text    indicator child_border
+client.focused          {c_active} {c_active} {c_fg} {c_active} {c_active}
+client.unfocused        {c_inactive} {c_inactive} {c_fg} {c_inactive} {c_inactive}
+client.focused_inactive {c_inactive} {c_inactive} {c_fg} {c_inactive} {c_inactive}
+client.urgent           #e53935 #e53935 {c_fg} #e53935 #e53935
+
+# --- Cursor Configuration ---
+seat * xcursor_theme {cursor} 24
+"""
+        
+        # Wallpaper Assignment Logic
         theme_dir = REPO_DIR / "themes" / self.selected_theme
         wp_mp4 = theme_dir / "wallpaper.mp4"
         wp_png = theme_dir / "wallpaper.png"
-        
-        wp_kdl_injection = ""
 
         if wp_mp4.exists():
             shutil.copy(wp_mp4, THEME_CACHE_MP4)
-            wp_kdl_injection = f'spawn-at-startup "mpvpaper" "-o" "no-audio --loop" "*" "{THEME_CACHE_MP4}"'
+            compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; mpvpaper -o 'no-audio --loop' '*' {THEME_CACHE_MP4}\"\n"
             
-            # Execute live swap immediately
-            self.run_cmd(["pkill", "-9", "mpvpaper"])
+            # Live execute instantly without waiting for Sway to reload
             self.run_cmd(["pkill", "-9", "swaybg"])
+            self.run_cmd(["pkill", "-9", "mpvpaper"])
             subprocess.Popen(["mpvpaper", "-o", "no-audio --loop", "*", THEME_CACHE_MP4], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-
+            
         elif wp_png.exists():
             shutil.copy(wp_png, THEME_CACHE_PNG)
-            wp_kdl_injection = f'spawn-at-startup "swaybg" "-i" "{THEME_CACHE_PNG}" "-m" "fill"'
+            compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; swaybg -i {THEME_CACHE_PNG} -m fill\"\n"
             
-            # Execute live swap immediately
+            # Live execute instantly without waiting for Sway to reload
             self.run_cmd(["pkill", "-9", "mpvpaper"])
             self.run_cmd(["pkill", "-9", "swaybg"])
             subprocess.Popen(["swaybg", "-i", THEME_CACHE_PNG, "-m", "fill"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
-        # Build final monolithic KDL Config
-        compiled_kdl = f"""// ==========================================================
-// AUTOMATICALLY GENERATED BY FOOLISH-ALTERATION
-// ==========================================================
+        THEME_FILE.write_text(compiled_sway)
 
-spawn-at-startup "waybar"
-{wp_kdl_injection}
+    def replace_main_sway_conf(self):
+        main_conf = SWAY_DIR / "config"
+        base_config = """# ==========================================================
+# AUTOMATICALLY GENERATED BY FOOLISH-ALTERATION
+# ==========================================================
 
-environment {{
-    XCURSOR_THEME "{cursor}"
-    XCURSOR_SIZE "24"
-}}
+# Include generated configurations
+include ~/.config/sway/Foolish_Theme.conf
+include ~/.config/sway/Foolish_Layout.conf
+include ~/.config/sway/Foolish_Keybinds.conf
 
-cursor {{
-    xcursor-theme "{cursor}"
-    xcursor-size 24
-}}
+# Base Settings
+font pango:monospace 10
+default_border pixel 2
+default_floating_border pixel 2
+hide_edge_borders smart
+focus_follows_mouse yes
 
-// --- INJECTED THEME VARIABLES ---
-layout {{
-    focus-ring {{
-        width 2
-        active-color "#{c_active}"
-        inactive-color "#{c_inactive}"
-    }}
-    border {{
-        off
-    }}
-}}
+# Input Settings (Default)
+input * {
+    xkb_layout "us"
+}
 
-// --- GITHUB REPO: CUSTOM LAYOUT ---
-{layout_data}
-
-// --- GITHUB REPO: CUSTOM KEYBINDS ---
-{keybind_data}
+# Boot Sequence (Bar)
+exec_always "pkill waybar; waybar"
 """
-        # Save config, Niri detects changes to this file instantly
-        NIRI_CONFIG.write_text(compiled_kdl)
+        main_conf.write_text(base_config)
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = NiriSetupWizard(root)
+    app = SwayFXSetupWizard(root)
     root.mainloop()
