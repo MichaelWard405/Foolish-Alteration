@@ -15,7 +15,7 @@ REPO_DIR = HOME / ".local/share/swayfx_theme_engine/repo"
 
 # Wallpaper Cache Paths
 THEME_CACHE_MP4 = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.mp4"
-THEME_CACHE_PNG = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.png"
+THEME_CACHE_IMAGE = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.image"
 
 # Configuration Targets
 KEYBINDS_FILE = SWAY_DIR / "Foolish_Keybinds.conf"
@@ -34,7 +34,6 @@ class SwayFXSetupWizard:
         self.root.title("SwayFX Setup Engine | Foolish-Alteration")
         self.root.geometry("600x450")
         
-        # Strictly empty initializations; populated ONLY by GitHub
         self.themes, self.layouts, self.keybinds = [], [], []
         self.selected_theme, self.selected_layout, self.selected_keybind = "", "", ""
         
@@ -144,8 +143,7 @@ class SwayFXSetupWizard:
         progress.start()
         self.root.update()
 
-        # No package installation, proceed directly to local apply
-        self.root.after(1000, lambda: self.execute_local_apply(theme_data))
+        self.root.after(500, lambda: self.execute_local_apply(theme_data))
 
     def resolve_theme_data(self, theme_name):
         if not theme_name or theme_name == "Missing Data": return {}
@@ -164,13 +162,11 @@ class SwayFXSetupWizard:
             cursor_theme = t_data.get('cursor_theme', 'Adwaita')
             font_name = t_data.get('font_name', 'Sans 11')
             
-            # 1. Bind Native Desktop Themes
             self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "gtk-theme", gtk_theme])
             self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "icon-theme", icon_theme])
             self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "cursor-theme", cursor_theme])
             self.run_cmd(["gsettings", "set", "org.gnome.desktop.interface", "font-name", font_name])
 
-            # 2. Inject Sandbox Permissions & CSS
             if "colors" in t_data:
                 self.compile_gtk_css(t_data["colors"])
                 self.patch_terminal_and_cli(t_data["colors"])
@@ -184,26 +180,28 @@ class SwayFXSetupWizard:
             self.run_cmd(["flatpak", "override", "--user", "--filesystem=xdg-config/gtk-3.0"])
             self.run_cmd(["flatpak", "override", "--user", "--filesystem=xdg-config/gtk-4.0"])
 
-            # 3. Deploy assets written by you on GitHub
             self.deploy_github_assets(self.selected_theme)
             self.write_sway_confs(t_data)
             self.replace_main_sway_conf()
             
-            # 4. Refresh Environments (SwayFX reload and Waybar)
             self.run_cmd(["pkill", "waybar"])
             subprocess.Popen(["waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
             self.run_cmd(["swaymsg", "reload"])
             
-            messagebox.showinfo("Success", "Assets deployed! SwayFX has been reloaded. Your custom styles, icons, and layout updates are now active.")
+            messagebox.showinfo("Success", "Assets deployed seamlessly! SwayFX variables generated and reloaded without errors.")
             self.root.destroy()
         except Exception as e:
             messagebox.showerror("Error During Compilation", str(e))
             self.root.destroy()
 
     def compile_gtk_css(self, colors):
-        bg = f"#{colors.get('background', '282828')}"
-        fg = f"#{colors.get('foreground', 'ebdbb2')}"
-        accent = f"#{colors.get('active_border', 'd3869b')}"
+        bg = colors.get('background', '#282828')
+        fg = colors.get('foreground', '#ebdbb2')
+        accent = colors.get('color4', '#458588')
+        
+        bg = bg if bg.startswith("#") else f"#{bg}"
+        fg = fg if fg.startswith("#") else f"#{fg}"
+        accent = accent if accent.startswith("#") else f"#{accent}"
         
         css_payload = f"""/* DYNAMICALLY COMPILED GTK THEME */
 @define-color theme_bg_color {bg};
@@ -236,9 +234,13 @@ class SwayFXSetupWizard:
         qt5ct_conf.write_text(conf_content)
 
     def patch_terminal_and_cli(self, colors):
-        bg = f"#{colors.get('background', '282828')}"
-        fg = f"#{colors.get('foreground', 'ebdbb2')}"
-        accent = f"#{colors.get('active_border', 'd3869b')}"
+        bg = colors.get('background', '#282828')
+        fg = colors.get('foreground', '#ebdbb2')
+        accent = colors.get('color4', '#458588')
+        
+        bg = bg if bg.startswith("#") else f"#{bg}"
+        fg = fg if fg.startswith("#") else f"#{fg}"
+        accent = accent if accent.startswith("#") else f"#{accent}"
 
         kitty_dir = HOME / ".config/kitty"
         kitty_dir.mkdir(parents=True, exist_ok=True)
@@ -279,53 +281,39 @@ class SwayFXSetupWizard:
         keybind_src = REPO_DIR / "keybinds" / self.selected_keybind
         KEYBINDS_FILE.write_text(keybind_src.read_text() if keybind_src.exists() else "")
 
+        # DYNAMICALLY GENERATE SWAY CONFIG VARIABLE INJECTIONS FROM JSON
         colors = t_data.get("colors", {})
-        c_active = f"#{colors.get('active_border', 'ffffff')}"
-        c_inactive = f"#{colors.get('inactive_border', '000000')}"
-        c_bg = f"#{colors.get('background', '282828')}"
-        c_fg = f"#{colors.get('foreground', 'ebdbb2')}"
+        sway_variables = "# --- DYNAMIC THEME VARIABLES ---\n"
+        for color_name, color_val in colors.items():
+            clean_val = color_val if color_val.startswith("#") else f"#{color_val}"
+            sway_variables += f"set ${color_name} {clean_val}\n"
+
         cursor = t_data.get('cursor_theme', 'Adwaita')
 
-        # Sway / SwayFX specific styling
-        compiled_sway = f"""# --- SwayFX Aesthetics ---
-corner_radius 10
-blur enable
-blur_passes 2
-shadows enable
-
-# --- Colors ---
-# class                 border  bground text    indicator child_border
-client.focused          {c_active} {c_active} {c_fg} {c_active} {c_active}
-client.unfocused        {c_inactive} {c_inactive} {c_fg} {c_inactive} {c_inactive}
-client.focused_inactive {c_inactive} {c_inactive} {c_fg} {c_inactive} {c_inactive}
-client.urgent           #e53935 #e53935 {c_fg} #e53935 #e53935
-
+        compiled_sway = f"""{sway_variables}
 # --- Cursor Configuration ---
 seat * xcursor_theme {cursor} 24
 """
         
-        # Wallpaper Assignment Logic
         theme_dir = REPO_DIR / "themes" / self.selected_theme
         wp_mp4 = theme_dir / "wallpaper.mp4"
         wp_png = theme_dir / "wallpaper.png"
+        wp_jpg = theme_dir / "wallpaper.jpg"
 
         if wp_mp4.exists():
             shutil.copy(wp_mp4, THEME_CACHE_MP4)
             compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; mpvpaper -o 'no-audio --loop' '*' {THEME_CACHE_MP4}\"\n"
-            
-            # Live execute instantly without waiting for Sway to reload
             self.run_cmd(["pkill", "-9", "swaybg"])
             self.run_cmd(["pkill", "-9", "mpvpaper"])
             subprocess.Popen(["mpvpaper", "-o", "no-audio --loop", "*", THEME_CACHE_MP4], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
             
-        elif wp_png.exists():
-            shutil.copy(wp_png, THEME_CACHE_PNG)
-            compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; swaybg -i {THEME_CACHE_PNG} -m fill\"\n"
-            
-            # Live execute instantly without waiting for Sway to reload
+        elif wp_png.exists() or wp_jpg.exists():
+            target_wp = wp_png if wp_png.exists() else wp_jpg
+            shutil.copy(target_wp, THEME_CACHE_IMAGE)
+            compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; swaybg -i {THEME_CACHE_IMAGE} -m fill\"\n"
             self.run_cmd(["pkill", "-9", "mpvpaper"])
             self.run_cmd(["pkill", "-9", "swaybg"])
-            subprocess.Popen(["swaybg", "-i", THEME_CACHE_PNG, "-m", "fill"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+            subprocess.Popen(["swaybg", "-i", THEME_CACHE_IMAGE, "-m", "fill"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 
         THEME_FILE.write_text(compiled_sway)
 
@@ -335,7 +323,7 @@ seat * xcursor_theme {cursor} 24
 # AUTOMATICALLY GENERATED BY FOOLISH-ALTERATION
 # ==========================================================
 
-# Include generated configurations
+# Include theme variables FIRST so layouts can parse them
 include ~/.config/sway/Foolish_Theme.conf
 include ~/.config/sway/Foolish_Layout.conf
 include ~/.config/sway/Foolish_Keybinds.conf
