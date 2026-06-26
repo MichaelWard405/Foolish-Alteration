@@ -1,354 +1,261 @@
+# ==============================================================================
+# FOOLISH-ALTERATION: LOCAL CACHE DEPLOYMENT ENGINE
+# ==============================================================================
+# This script creates a local cache of your GitHub repository.
+# It allows you to quickly swap themes, layouts, and keybinds from your local disk
+# without needing to re-download them every single time.
+# ==============================================================================
+
 import os
-import sys
-import json
 import shutil
 import subprocess
-import logging
-import urllib.request
-import zipfile
 import tkinter as tk
 from tkinter import ttk, messagebox
-import threading
 from pathlib import Path
 
-# --- Logging for Debugging ---
-LOG_FILE = Path.home() / ".local/share/swayfx_theme_engine/debug.log"
-LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+# ------------------------------------------------------------------------------
+# 1. DEFINE ALL MASTER PATHS
+# ------------------------------------------------------------------------------
+# We use Path.home() to dynamically find where your user folder is (e.g., /home/Michael/)
+HOME_DIR = Path.home()
 
-def debug_log(msg):
-    print(msg)
-    logging.debug(msg)
+# This is where your system actually looks for configuration files to run your desktop
+SWAY_SYS_DIR = HOME_DIR / ".config/sway"
+WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
+WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
 
-# --- Core Paths ---
-HOME = Path.home()
-SWAY_DIR = HOME / ".config/sway"
-REPO_DIR = HOME / ".local/share/swayfx_theme_engine/repo"
-THEMES_DIR = HOME / ".themes"
+# This is your new LOCAL CACHE directory. Everything downloads here first.
+# It lives in ~/.local/share/ to keep your main home directory clean.
+MASTER_LOCAL_DIR = HOME_DIR / ".local/share/Foolish-Alteration"
 
-THEME_CACHE_MP4 = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.mp4"
-THEME_CACHE_IMAGE = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.image"
+# These are the specific sub-folders inside your local cache
+LOCAL_THEMES_DIR = MASTER_LOCAL_DIR / "Themes"
+LOCAL_LAYOUTS_DIR = MASTER_LOCAL_DIR / "Layouts"
+LOCAL_KEYBINDS_DIR = MASTER_LOCAL_DIR / "Keybinds"
 
-KEYBINDS_FILE = SWAY_DIR / "Foolish_Keybinds.conf"
-THEME_FILE = SWAY_DIR / "Foolish_Theme.conf"
-LAYOUT_FILE = SWAY_DIR / "Foolish_Layout.conf"
+# The URL to your GitHub repository (The "Warehouse")
+GITHUB_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
+# A temporary folder used just for downloading, which gets deleted immediately after
+TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 
-REPO_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
+# ------------------------------------------------------------------------------
+# 2. MAIN APPLICATION CLASS
+# ------------------------------------------------------------------------------
+class FoolishDeployer:
+    def __init__(self, root_window):
+        # Setup the main UI window
+        self.root = root_window
+        self.root.title("Foolish-Alteration | Local Deployer")
+        self.root.geometry("500x450")
+        self.root.resizable(False, False)
 
-# Ensure base directories exist
-for directory in [SWAY_DIR, REPO_DIR.parent, THEMES_DIR, HOME / ".local/share/fonts"]:
-    directory.mkdir(parents=True, exist_ok=True)
+        # Ensure all our local caching directories actually exist on your hard drive
+        self.create_local_directories()
 
-class RobustSwayFXEngine:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("SwayFX Setup Engine | Foolish-Alteration")
-        self.root.geometry("650x500")
+        # Step 1: Sync with GitHub to populate the local cache
+        self.sync_warehouse_to_local()
+
+        # Step 2: Read the local cache to see what options we have available
+        self.available_themes = self.get_folders_in_dir(LOCAL_THEMES_DIR)
+        self.available_layouts = self.get_folders_in_dir(LOCAL_LAYOUTS_DIR)
+        self.available_keybinds = self.get_files_in_dir(LOCAL_KEYBINDS_DIR)
+
+        # Variables that will store whatever the user selects in the dropdown menus
+        self.selected_theme = tk.StringVar(value=self.get_default(self.available_themes))
+        self.selected_layout = tk.StringVar(value=self.get_default(self.available_layouts))
+        self.selected_keybind = tk.StringVar(value=self.get_default(self.available_keybinds))
+
+        # Step 3: Draw the user interface
+        self.build_ui()
+
+    # --------------------------------------------------------------------------
+    # DIRECTORY MANAGEMENT
+    # --------------------------------------------------------------------------
+    def create_local_directories(self):
+        """Creates the local cache folders if they don't exist yet."""
+        for directory in [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, SWAY_SYS_DIR]:
+            directory.mkdir(parents=True, exist_ok=True)
+
+    def get_folders_in_dir(self, directory):
+        """Scans a directory and returns a list of folder names inside it."""
+        if not directory.exists():
+            return ["None"]
+        # Look for items that are directories and ignore hidden folders (like .git)
+        return [item.name for item in directory.iterdir() if item.is_dir() and not item.name.startswith('.')]
+
+    def get_files_in_dir(self, directory):
+        """Scans a directory and returns a list of file names inside it."""
+        if not directory.exists():
+            return ["None"]
+        # Look for items that are files and ignore hidden files
+        return [item.name for item in directory.iterdir() if item.is_file() and not item.name.startswith('.')]
+
+    def get_default(self, item_list):
+        """Helper to set the dropdown default to the first available option."""
+        return item_list[0] if item_list else "None"
+
+    # --------------------------------------------------------------------------
+    # GITHUB SYNC (THE WAREHOUSE)
+    # --------------------------------------------------------------------------
+    def sync_warehouse_to_local(self):
+        """Downloads the latest files from GitHub and moves them into your local cache."""
+        print("Syncing with GitHub Warehouse...")
         
-        self.themes, self.layouts, self.keybinds = [], [], []
-        self.selected_theme, self.selected_layout, self.selected_keybind = "", "", ""
-        
-        self.current_step = 1
-        self.main_container = ttk.Frame(self.root, padding=30)
-        self.main_container.pack(fill='both', expand=True)
-        
-        self.sync_repository()
-
-    def clear_container(self):
-        for widget in self.main_container.winfo_children(): 
-            widget.destroy()
-
-    def sync_repository(self):
-        self.clear_container()
-        ttk.Label(self.main_container, text="Fetching GitHub Repository...", font=("Helvetica", 16, "bold")).pack(pady=40)
-        
-        progress = ttk.Progressbar(self.main_container, mode='indeterminate')
-        progress.pack(fill='x', padx=40, pady=10)
-        progress.start()
-        self.root.update()
-
-        def task():
-            try:
-                if REPO_DIR.exists() and (REPO_DIR / ".git").exists():
-                    debug_log("Pulling latest repo updates...")
-                    subprocess.run(["git", "-C", str(REPO_DIR), "pull"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                else:
-                    debug_log("Cloning repository for the first time...")
-                    if REPO_DIR.exists(): shutil.rmtree(REPO_DIR)
-                    subprocess.run(["git", "clone", REPO_URL, str(REPO_DIR)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except Exception as e: 
-                debug_log(f"Git Sync Warning: {e}")
+        # 1. Clean up any old temporary download folders
+        if TMP_GIT_DIR.exists():
+            shutil.rmtree(TMP_GIT_DIR)
             
-            self.scan_repository_data()
-            self.root.after(0, self.render_current_step)
-
-        threading.Thread(target=task, daemon=True).start()
-
-    def scan_repository_data(self):
-        if not REPO_DIR.exists(): return
-        
-        theme_dir = REPO_DIR / "themes"
-        if theme_dir.exists():
-            self.themes = [d.name for d in theme_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
-            if self.themes: self.selected_theme = self.themes[0]
-
-        layout_dir = REPO_DIR / "layouts"
-        if layout_dir.exists():
-            self.layouts = [d.name for d in layout_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
-            if self.layouts: self.selected_layout = self.layouts[0]
-
-        keybind_dir = REPO_DIR / "keybinds"
-        if keybind_dir.exists():
-            self.keybinds = [f.name for f in keybind_dir.iterdir() if f.is_file() and not f.name.startswith('.')]
-            if self.keybinds: self.selected_keybind = self.keybinds[0]
-
-    def next_step(self):
-        self.current_step += 1
-        self.render_current_step()
-
-    def prev_step(self):
-        self.current_step -= 1
-        self.render_current_step()
-
-    def render_current_step(self):
-        self.clear_container()
-        if self.current_step == 1: 
-            self.render_selection("Choose a Custom Theme", "Select from your configuration packs:", self.themes, "theme")
-        elif self.current_step == 2: 
-            self.render_selection("Choose a Window Layout", "Select your workspace behavior:", self.layouts, "layout")
-        elif self.current_step == 3: 
-            self.render_selection("Choose Operational Keybinds", "Select your shortcut profile:", self.keybinds, "keybind")
-        elif self.current_step == 4: 
-            self.render_summary()
-
-    def render_selection(self, title, desc, items, selection_type):
-        ttk.Label(self.main_container, text=title, font=("Helvetica", 14, "bold")).pack(pady=10)
-        ttk.Label(self.main_container, text=desc).pack(pady=5)
-        
-        if not items:
-            items = ["No data found in repository"]
-            
-        current_val = getattr(self, f"selected_{selection_type}")
-        var = tk.StringVar(value=current_val if current_val else items[0])
-        
-        combo = ttk.Combobox(self.main_container, textvariable=var, values=items, state="readonly", width=40)
-        combo.pack(pady=20)
-        
-        def save_and_next():
-            if var.get() != "No data found in repository":
-                setattr(self, f"selected_{selection_type}", var.get())
-            self.next_step()
-            
-        self.build_navigation(save_and_next)
-
-    def render_summary(self):
-        ttk.Label(self.main_container, text="Review Deployment", font=("Helvetica", 16, "bold")).pack(pady=10)
-        
-        summary = (
-            f"Target Theme:\n  → {self.selected_theme}\n\n"
-            f"Target Layout:\n  → {self.selected_layout}\n\n"
-            f"Target Keybindings:\n  → {self.selected_keybind}"
-        )
-        ttk.Label(self.main_container, text=summary, justify='left', font=("Courier", 11)).pack(pady=20, fill='x', padx=40)
-        
-        btn = ttk.Button(self.main_container, text="DEPLOY TO SYSTEM", command=self.apply_engine)
-        btn.pack(pady=20, ipady=12, fill='x', padx=40)
-        
-        self.build_navigation(None)
-
-    def build_navigation(self, next_callback):
-        nav_frame = ttk.Frame(self.main_container)
-        nav_frame.pack(side='bottom', fill='x', pady=10)
-        if self.current_step > 1: 
-            ttk.Button(nav_frame, text="◀ Back", command=self.prev_step).pack(side='left')
-        if next_callback: 
-            ttk.Button(nav_frame, text="Next ▶", command=next_callback).pack(side='right')
-
-    def apply_engine(self):
-        theme_data = self.resolve_theme_data(self.selected_theme)
-        self.clear_container()
-        ttk.Label(self.main_container, text="Deploying Assets & Fonts...", font=("Helvetica", 14, "bold")).pack(pady=50)
-        progress = ttk.Progressbar(self.main_container, mode='indeterminate')
-        progress.pack(fill='x', padx=50, pady=10)
-        progress.start()
-        self.root.update()
-        
-        threading.Thread(target=self.execute_local_apply, args=(theme_data,), daemon=True).start()
-
-    def resolve_theme_data(self, theme_name):
-        if not theme_name: return {}
-        t_json = REPO_DIR / "themes" / theme_name / "theme.json"
-        if t_json.exists():
-            try: return json.loads(t_json.read_text())
-            except Exception as e: debug_log(f"Failed to read theme.json: {e}")
-        return {}
-
-    def fetch_missing_fonts(self):
-        """Downloads the BigBlueTerminal Nerd Font if not present"""
-        font_dir = HOME / ".local/share/fonts/BigBlueTerminal"
-        if not font_dir.exists() or not list(font_dir.glob("*.ttf")):
-            debug_log("BigBlue Terminal font missing. Initiating download from Nerd Fonts...")
-            font_dir.mkdir(parents=True, exist_ok=True)
-            zip_path = font_dir / "font.zip"
-            url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/BigBlueTerminal.zip"
-            try:
-                urllib.request.urlretrieve(url, zip_path)
-                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(font_dir)
-                zip_path.unlink()
-                subprocess.run(["fc-cache", "-fv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                debug_log("Font download and cache update successful.")
-            except Exception as e:
-                debug_log(f"CRITICAL: Failed to download fonts: {e}")
-
-    def execute_local_apply(self, t_data):
         try:
-            debug_log(f"Starting deployment for theme: {self.selected_theme}")
+            # 2. Clone the repository into the temporary folder
+            subprocess.run(["git", "clone", GITHUB_URL, str(TMP_GIT_DIR)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
-            # Fetch missing font dependencies directly
-            self.fetch_missing_fonts()
+            # 3. Define the paths inside the newly downloaded GitHub folder
+            git_themes = TMP_GIT_DIR / "themes"
+            git_layouts = TMP_GIT_DIR / "layouts"
+            git_keybinds = TMP_GIT_DIR / "keybinds"
 
-            # Base Settings from theme.json (or fallback defaults if it doesn't exist)
-            custom_gtk_name = t_data.get('gtk_theme', f"Foolish-{self.selected_theme}")
-            icon_theme = t_data.get('icon_theme', 'Adwaita')
-            cursor_theme = t_data.get('cursor_theme', 'Adwaita')
-            font_name = t_data.get('font_name', 'BigBlue Terminal 11')
-            
-            # 1. Map and deploy raw folders
-            self.deploy_github_assets(self.selected_theme, custom_gtk_name)
-            
-            # 2. Lock in Native GTK settings
-            self.write_gtk_settings(custom_gtk_name, icon_theme, cursor_theme, font_name)
-            
-            # 3. Compile Sway Configuration
-            self.write_sway_confs(t_data, custom_gtk_name, icon_theme, cursor_theme, font_name)
-            self.replace_main_sway_conf()
-            
-            # 4. Restart Environment Safely via Swaymsg
-            debug_log("Triggering Sway Reload...")
-            subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            
-            debug_log("Deployment complete.")
-            self.root.after(0, lambda: messagebox.showinfo("Success", "System successfully synchronized with repository!"))
-            self.root.after(0, self.root.destroy)
+            # 4. Copy everything from the GitHub download into your permanent Local Cache
+            # The dirs_exist_ok=True flag means it will overwrite old files with the new ones
+            if git_themes.exists():
+                shutil.copytree(git_themes, LOCAL_THEMES_DIR, dirs_exist_ok=True)
+            if git_layouts.exists():
+                shutil.copytree(git_layouts, LOCAL_LAYOUTS_DIR, dirs_exist_ok=True)
+            if git_keybinds.exists():
+                shutil.copytree(git_keybinds, LOCAL_KEYBINDS_DIR, dirs_exist_ok=True)
+
+            print("Local Cache successfully updated.")
             
         except Exception as e:
-            debug_log(f"DEPLOYMENT CRASHED: {e}")
-            self.root.after(0, lambda: messagebox.showerror("Deployment Error", f"Failed: {e}\nCheck {LOG_FILE} for details."))
-            self.root.after(0, self.root.destroy)
+            print(f"Failed to sync with GitHub. Using existing local cache. Error: {e}")
+            
+        finally:
+            # 5. Always delete the temporary download folder when finished to save space
+            if TMP_GIT_DIR.exists():
+                shutil.rmtree(TMP_GIT_DIR)
 
-    def deploy_github_assets(self, theme_name, custom_gtk_name):
-        if not theme_name: return
-        theme_dir = REPO_DIR / "themes" / theme_name
-        
-        def safe_deploy(repo_path, system_path):
-            if repo_path.exists():
-                if system_path.exists():
-                    shutil.rmtree(system_path)
-                shutil.copytree(repo_path, system_path)
+    # --------------------------------------------------------------------------
+    # USER INTERFACE
+    # --------------------------------------------------------------------------
+    def build_ui(self):
+        """Constructs the buttons and dropdown menus on the screen."""
+        main_frame = ttk.Frame(self.root, padding=20)
+        main_frame.pack(fill='both', expand=True)
 
-        safe_deploy(theme_dir / "gtk-theme", THEMES_DIR / custom_gtk_name)
-        safe_deploy(theme_dir / "wofi", HOME / ".config/wofi")
-        safe_deploy(theme_dir / "waybar", HOME / ".config/waybar")
-        safe_deploy(theme_dir / "wlogout", HOME / ".config/wlogout")
+        ttk.Label(main_frame, text="Foolish-Alteration Deployer", font=("Helvetica", 16, "bold")).pack(pady=15)
 
-        repo_colors = theme_dir / "colours.css"
-        if repo_colors.exists():
-            for target in ["wofi", "waybar", "wlogout"]:
-                target_dir = HOME / f".config/{target}"
-                if target_dir.exists():
-                    shutil.copy(repo_colors, target_dir / "colours.css")
-                    shutil.copy(repo_colors, target_dir / "colors.css")
+        # --- Theme Selector ---
+        ttk.Label(main_frame, text="1. Select Theme (Local Cache):").pack(anchor='w', pady=(10, 0))
+        ttk.Combobox(main_frame, textvariable=self.selected_theme, values=self.available_themes, state="readonly", width=40).pack(pady=5)
 
-    def write_gtk_settings(self, gtk_theme, icon_theme, cursor_theme, font_name):
-        payload = f"""[Settings]\ngtk-theme-name={gtk_theme}\ngtk-icon-theme-name={icon_theme}\ngtk-cursor-theme-name={cursor_theme}\ngtk-font-name={font_name}\ngtk-application-prefer-dark-theme=1\n"""
-        for v in ["3.0", "4.0"]:
-            gtk_dir = HOME / f".config/gtk-{v}"
-            gtk_dir.mkdir(parents=True, exist_ok=True)
-            (gtk_dir / "settings.ini").write_text(payload)
+        # --- Layout Selector ---
+        ttk.Label(main_frame, text="2. Select Layout (Local Cache):").pack(anchor='w', pady=(10, 0))
+        ttk.Combobox(main_frame, textvariable=self.selected_layout, values=self.available_layouts, state="readonly", width=40).pack(pady=5)
 
-    def write_sway_confs(self, t_data, gtk_theme, icon_theme, cursor_theme, font_name):
-        # Read Layout & Keybinds from repo (Fixed Capitalization: Layout.conf)
-        layout_src = REPO_DIR / "layouts" / self.selected_layout / "Layout.conf"
-        LAYOUT_FILE.write_text(layout_src.read_text() if layout_src.exists() else "")
-        
-        keybind_src = REPO_DIR / "keybinds" / self.selected_keybind
-        KEYBINDS_FILE.write_text(keybind_src.read_text() if keybind_src.exists() else "")
+        # --- Keybind Selector ---
+        ttk.Label(main_frame, text="3. Select Keybinds (Local Cache):").pack(anchor='w', pady=(10, 0))
+        ttk.Combobox(main_frame, textvariable=self.selected_keybind, values=self.available_keybinds, state="readonly", width=40).pack(pady=5)
 
-        # Provide extreme fallbacks so Sway layout variables never crash the system
-        colors = t_data.get("colors", {
-            "background": "#1a1a1a",
-            "foreground": "#d0d0d0",
-            "color0": "#2d2d2d",
-            "color4": "#ffb000"
-        })
+        # --- Deploy Button ---
+        deploy_btn = ttk.Button(main_frame, text="DEPLOY TO SYSTEM", command=self.execute_deployment)
+        deploy_btn.pack(pady=30, ipady=10, fill='x')
 
-        sway_variables = "# --- REPOSITORY THEME VARIABLES ---\n"
-        for c_name, c_val in colors.items():
-            clean_val = c_val if c_val.startswith("#") else f"#{c_val}"
-            sway_variables += f"set ${c_name} {clean_val}\n"
+    # --------------------------------------------------------------------------
+    # SYSTEM DEPLOYMENT (THE ENGINE)
+    # --------------------------------------------------------------------------
+    def execute_deployment(self):
+        """Grabs the files from the Local Cache, cleans them, and puts them in the system configs."""
+        try:
+            # 1. Identify EXACTLY which local files we are grabbing based on the UI selection
+            target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
+            target_layout_file = LOCAL_LAYOUTS_DIR / self.selected_layout.get() / "Layout.conf"
+            target_keybind_file = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
 
-        # FIXED SWAY SYNTAX: No {} blocks, explicit lines only.
-        gsettings_block = f"""
-# --- GTK & DBUS Sync Sequence ---
-set $gnome-schema org.gnome.desktop.interface
-exec_always gsettings set $gnome-schema gtk-theme '{gtk_theme}'
-exec_always gsettings set $gnome-schema icon-theme '{icon_theme}'
-exec_always gsettings set $gnome-schema cursor-theme '{cursor_theme}'
-exec_always gsettings set $gnome-schema font-name '{font_name}'
-exec_always gsettings set $gnome-schema color-scheme 'prefer-dark'
-seat * xcursor_theme {cursor_theme} 24
-exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
-"""
-        compiled_sway = sway_variables + gsettings_block
-        
-        theme_dir = REPO_DIR / "themes" / self.selected_theme
-        wp_mp4, wp_png, wp_jpg = theme_dir / "wallpaper.mp4", theme_dir / "wallpaper.png", theme_dir / "wallpaper.jpg"
+            # 2. Define exactly where they need to go in the system
+            sys_theme_file = SWAY_SYS_DIR / "Foolish_Theme.conf"
+            sys_layout_file = SWAY_SYS_DIR / "Foolish_Layout.conf"
+            sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
+            sys_main_config = SWAY_SYS_DIR / "config"
 
-        if wp_mp4.exists():
-            shutil.copy(wp_mp4, THEME_CACHE_MP4)
-            compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; mpvpaper -o 'no-audio --loop' '*' {THEME_CACHE_MP4}\"\n"
-        elif wp_png.exists() or wp_jpg.exists():
-            target_wp = wp_png if wp_png.exists() else wp_jpg
-            shutil.copy(target_wp, THEME_CACHE_IMAGE)
-            compiled_sway += f"\nexec_always \"pkill mpvpaper; pkill swaybg; swaybg -i {THEME_CACHE_IMAGE} -m fill\"\n"
+            # 3. DEPLOY APP CONFIGS (Waybar, Wofi, etc.) FROM THE LOCAL THEME FOLDER
+            # If the selected theme has a specific waybar or wofi folder, copy it to the system
+            local_waybar = target_theme_dir / "waybar"
+            if local_waybar.exists():
+                if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
+                shutil.copytree(local_waybar, WAYBAR_SYS_DIR)
 
-        THEME_FILE.write_text(compiled_sway)
+            local_wofi = target_theme_dir / "wofi"
+            if local_wofi.exists():
+                if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
+                shutil.copytree(local_wofi, WOFI_SYS_DIR)
 
-    def replace_main_sway_conf(self):
-        main_conf = SWAY_DIR / "config"
-        base_config = """# ==========================================================
-# AUTOMATICALLY GENERATED BY FOOLISH-ALTERATION ENGINE
-# ==========================================================
+            # 4. DEPLOY SWAY CONFIGS WITH THE "SLEDGEHAMMER" SYNTAX CLEANER
+            # We copy the file, and then run a Linux 'sed' command on the copied file
+            # to strip out any broken literal backslashes (e.g. changing \$mod to $mod)
+            
+            def clean_and_copy(source_path, dest_path):
+                if source_path.exists():
+                    shutil.copy(source_path, dest_path)
+                    # The Sledgehammer: Deletes backslashes immediately preceding a dollar sign
+                    subprocess.run(['sed', '-i', 's/\\\\\\$/$/g', str(dest_path)])
 
-include ~/.config/sway/Foolish_Theme.conf
-include ~/.config/sway/Foolish_Layout.conf
-include ~/.config/sway/Foolish_Keybinds.conf
+            # Clean and deploy Keybinds and Layouts
+            clean_and_copy(target_keybind_file, sys_keybind_file)
+            clean_and_copy(target_layout_file, sys_layout_file)
 
-font pango:monospace 10
-default_border pixel 2
-default_floating_border pixel 2
-hide_edge_borders smart
-focus_follows_mouse yes
+            # The Theme file usually comes from colours.css in your repo
+            local_colours = target_theme_dir / "colours.css"
+            if local_colours.exists():
+                clean_and_copy(local_colours, sys_theme_file)
 
-input * {
-    xkb_layout "us"
-}
+            # 5. REWRITE THE MAIN SWAY CONFIGURATION TO ENSURE CORRECT LOAD ORDER
+            # The load order must be: Colors (Theme) -> Variables (Keybinds) -> Rules (Layout)
+            base_config = (
+                "include ~/.config/sway/Foolish_Theme.conf\n"
+                "include ~/.config/sway/Foolish_Keybinds.conf\n"
+                "include ~/.config/sway/Foolish_Layout.conf\n"
+                "exec_always pkill waybar; waybar\n"
+            )
+            sys_main_config.write_text(base_config)
 
-# Ensure Waybar restarts when Sway reloads
-exec_always "pkill waybar; waybar"
-"""
-        if not main_conf.exists() or "FOOLISH-ALTERATION" not in main_conf.read_text():
-            main_conf.write_text(base_config)
+            # 6. RESTART SWAY TO APPLY THE NEW FILES
+            print("Triggering Sway Reload...")
+            subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            
+            # 7. NOTIFY USER OF SUCCESS
+            self.show_success_and_exit()
 
+        except Exception as e:
+            # If anything breaks, show the exact error message
+            self.show_error_and_exit(str(e))
+
+    def show_success_and_exit(self):
+        """Safely shows a success message and closes the app without crashing Tkinter."""
+        def callback():
+            messagebox.showinfo("Success", f"Successfully deployed theme: {self.selected_theme.get()} from Local Cache!")
+            self.root.destroy()
+        self.root.after(0, callback)
+
+    def show_error_and_exit(self, error_msg):
+        """Safely shows an error message and closes the app."""
+        def callback():
+            messagebox.showerror("Deployment Error", f"Something went wrong:\n{error_msg}")
+            self.root.destroy()
+        self.root.after(0, callback)
+
+# ------------------------------------------------------------------------------
+# PROGRAM ENTRY POINT
+# ------------------------------------------------------------------------------
 if __name__ == "__main__":
-    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
-        print("CRITICAL: No graphical display environment found. Tkinter cannot run from a raw TTY.")
-        sys.exit(1)
-        
+    # Start the Tkinter UI framework
     root = tk.Tk()
+    
+    # Make it look a little nicer if the 'clam' theme is available
     style = ttk.Style(root)
     if 'clam' in style.theme_names():
         style.theme_use('clam')
-    app = RobustSwayFXEngine(root)
+        
+    # Launch the Application
+    app = FoolishDeployer(root)
+    
+    # Keep the window open and listening for clicks
     root.mainloop()
