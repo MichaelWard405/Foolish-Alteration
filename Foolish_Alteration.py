@@ -3,10 +3,22 @@ import sys
 import json
 import shutil
 import subprocess
+import logging
+import urllib.request
+import zipfile
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
 from pathlib import Path
+
+# --- Logging for Debugging ---
+LOG_FILE = Path.home() / ".local/share/swayfx_theme_engine/debug.log"
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def debug_log(msg):
+    print(msg)
+    logging.debug(msg)
 
 # --- Core Paths ---
 HOME = Path.home()
@@ -17,7 +29,6 @@ THEMES_DIR = HOME / ".themes"
 THEME_CACHE_MP4 = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.mp4"
 THEME_CACHE_IMAGE = HOME / ".local/share/swayfx_theme_engine/current_wallpaper.image"
 
-# Sway Configuration Targets
 KEYBINDS_FILE = SWAY_DIR / "Foolish_Keybinds.conf"
 THEME_FILE = SWAY_DIR / "Foolish_Theme.conf"
 LAYOUT_FILE = SWAY_DIR / "Foolish_Layout.conf"
@@ -25,17 +36,15 @@ LAYOUT_FILE = SWAY_DIR / "Foolish_Layout.conf"
 REPO_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 
 # Ensure base directories exist
-SWAY_DIR.mkdir(parents=True, exist_ok=True)
-REPO_DIR.parent.mkdir(parents=True, exist_ok=True)
-THEMES_DIR.mkdir(parents=True, exist_ok=True)
+for directory in [SWAY_DIR, REPO_DIR.parent, THEMES_DIR, HOME / ".local/share/fonts"]:
+    directory.mkdir(parents=True, exist_ok=True)
 
-class SwayFXSetupWizard:
+class RobustSwayFXEngine:
     def __init__(self, root):
         self.root = root
         self.root.title("SwayFX Setup Engine | Foolish-Alteration")
         self.root.geometry("650x500")
         
-        # State variables
         self.themes, self.layouts, self.keybinds = [], [], []
         self.selected_theme, self.selected_layout, self.selected_keybind = "", "", ""
         
@@ -61,12 +70,14 @@ class SwayFXSetupWizard:
         def task():
             try:
                 if REPO_DIR.exists() and (REPO_DIR / ".git").exists():
+                    debug_log("Pulling latest repo updates...")
                     subprocess.run(["git", "-C", str(REPO_DIR), "pull"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 else:
+                    debug_log("Cloning repository for the first time...")
                     if REPO_DIR.exists(): shutil.rmtree(REPO_DIR)
                     subprocess.run(["git", "clone", REPO_URL, str(REPO_DIR)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception as e: 
-                print(f"Git Sync Warning: {e}\nAttempting to proceed with local cache if available.")
+                debug_log(f"Git Sync Warning: {e}")
             
             self.scan_repository_data()
             self.root.after(0, self.render_current_step)
@@ -156,7 +167,7 @@ class SwayFXSetupWizard:
     def apply_engine(self):
         theme_data = self.resolve_theme_data(self.selected_theme)
         self.clear_container()
-        ttk.Label(self.main_container, text="Deploying Assets...", font=("Helvetica", 14, "bold")).pack(pady=50)
+        ttk.Label(self.main_container, text="Deploying Assets & Fonts...", font=("Helvetica", 14, "bold")).pack(pady=50)
         progress = ttk.Progressbar(self.main_container, mode='indeterminate')
         progress.pack(fill='x', padx=50, pady=10)
         progress.start()
@@ -169,16 +180,39 @@ class SwayFXSetupWizard:
         t_json = REPO_DIR / "themes" / theme_name / "theme.json"
         if t_json.exists():
             try: return json.loads(t_json.read_text())
-            except Exception as e: print(f"Failed to read theme.json: {e}")
+            except Exception as e: debug_log(f"Failed to read theme.json: {e}")
         return {}
+
+    def fetch_missing_fonts(self):
+        """Downloads the BigBlueTerminal Nerd Font if not present"""
+        font_dir = HOME / ".local/share/fonts/BigBlueTerminal"
+        if not font_dir.exists() or not list(font_dir.glob("*.ttf")):
+            debug_log("BigBlue Terminal font missing. Initiating download from Nerd Fonts...")
+            font_dir.mkdir(parents=True, exist_ok=True)
+            zip_path = font_dir / "font.zip"
+            url = "https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/BigBlueTerminal.zip"
+            try:
+                urllib.request.urlretrieve(url, zip_path)
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(font_dir)
+                zip_path.unlink()
+                subprocess.run(["fc-cache", "-fv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                debug_log("Font download and cache update successful.")
+            except Exception as e:
+                debug_log(f"CRITICAL: Failed to download fonts: {e}")
 
     def execute_local_apply(self, t_data):
         try:
+            debug_log(f"Starting deployment for theme: {self.selected_theme}")
+            
+            # Fetch missing font dependencies directly
+            self.fetch_missing_fonts()
+
             # Base Settings from theme.json (or fallback defaults if it doesn't exist)
             custom_gtk_name = t_data.get('gtk_theme', f"Foolish-{self.selected_theme}")
             icon_theme = t_data.get('icon_theme', 'Adwaita')
             cursor_theme = t_data.get('cursor_theme', 'Adwaita')
-            font_name = t_data.get('font_name', 'Sans 11')
+            font_name = t_data.get('font_name', 'BigBlue Terminal 11')
             
             # 1. Map and deploy raw folders
             self.deploy_github_assets(self.selected_theme, custom_gtk_name)
@@ -190,16 +224,17 @@ class SwayFXSetupWizard:
             self.write_sway_confs(t_data, custom_gtk_name, icon_theme, cursor_theme, font_name)
             self.replace_main_sway_conf()
             
-            # 4. Restart Environment Safely
-            subprocess.run(["pkill", "waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            subprocess.Popen(["waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-            subprocess.run(["swaymsg", "reload"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            # 4. Restart Environment Safely via Swaymsg
+            debug_log("Triggering Sway Reload...")
+            subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
+            debug_log("Deployment complete.")
             self.root.after(0, lambda: messagebox.showinfo("Success", "System successfully synchronized with repository!"))
             self.root.after(0, self.root.destroy)
             
         except Exception as e:
-            self.root.after(0, lambda: messagebox.showerror("Deployment Error", str(e)))
+            debug_log(f"DEPLOYMENT CRASHED: {e}")
+            self.root.after(0, lambda: messagebox.showerror("Deployment Error", f"Failed: {e}\nCheck {LOG_FILE} for details."))
             self.root.after(0, self.root.destroy)
 
     def deploy_github_assets(self, theme_name, custom_gtk_name):
@@ -212,22 +247,17 @@ class SwayFXSetupWizard:
                     shutil.rmtree(system_path)
                 shutil.copytree(repo_path, system_path)
 
-        # Deploy GTK Theme Directory natively
         safe_deploy(theme_dir / "gtk-theme", THEMES_DIR / custom_gtk_name)
-
-        # Deploy Wayland application configs
         safe_deploy(theme_dir / "wofi", HOME / ".config/wofi")
         safe_deploy(theme_dir / "waybar", HOME / ".config/waybar")
         safe_deploy(theme_dir / "wlogout", HOME / ".config/wlogout")
 
-        # Distribute global colours.css if it exists (Updated spelling based on git)
         repo_colors = theme_dir / "colours.css"
         if repo_colors.exists():
             for target in ["wofi", "waybar", "wlogout"]:
                 target_dir = HOME / f".config/{target}"
                 if target_dir.exists():
                     shutil.copy(repo_colors, target_dir / "colours.css")
-                    # Also copy as colors.css just in case your internal @imports use the American spelling
                     shutil.copy(repo_colors, target_dir / "colors.css")
 
     def write_gtk_settings(self, gtk_theme, icon_theme, cursor_theme, font_name):
@@ -245,30 +275,33 @@ class SwayFXSetupWizard:
         keybind_src = REPO_DIR / "keybinds" / self.selected_keybind
         KEYBINDS_FILE.write_text(keybind_src.read_text() if keybind_src.exists() else "")
 
-        # Extract dynamic colors for Sway window borders (will just skip if no theme.json exists)
+        # Provide extreme fallbacks so Sway layout variables never crash the system
+        colors = t_data.get("colors", {
+            "background": "#1a1a1a",
+            "foreground": "#d0d0d0",
+            "color0": "#2d2d2d",
+            "color4": "#ffb000"
+        })
+
         sway_variables = "# --- REPOSITORY THEME VARIABLES ---\n"
-        colors = t_data.get("colors", {})
         for c_name, c_val in colors.items():
             clean_val = c_val if c_val.startswith("#") else f"#{c_val}"
             sway_variables += f"set ${c_name} {clean_val}\n"
 
-        # Apply GTK to Wayland environment natively
+        # FIXED SWAY SYNTAX: No {} blocks, explicit lines only.
         gsettings_block = f"""
 # --- GTK & DBUS Sync Sequence ---
 set $gnome-schema org.gnome.desktop.interface
-exec_always {{
-    gsettings set $gnome-schema gtk-theme '{gtk_theme}'
-    gsettings set $gnome-schema icon-theme '{icon_theme}'
-    gsettings set $gnome-schema cursor-theme '{cursor_theme}'
-    gsettings set $gnome-schema font-name '{font_name}'
-    gsettings set $gnome-schema color-scheme 'prefer-dark'
-}}
+exec_always gsettings set $gnome-schema gtk-theme '{gtk_theme}'
+exec_always gsettings set $gnome-schema icon-theme '{icon_theme}'
+exec_always gsettings set $gnome-schema cursor-theme '{cursor_theme}'
+exec_always gsettings set $gnome-schema font-name '{font_name}'
+exec_always gsettings set $gnome-schema color-scheme 'prefer-dark'
 seat * xcursor_theme {cursor_theme} 24
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
 """
         compiled_sway = sway_variables + gsettings_block
         
-        # Handle Wallpapers if they exist in the repo theme folder
         theme_dir = REPO_DIR / "themes" / self.selected_theme
         wp_mp4, wp_png, wp_jpg = theme_dir / "wallpaper.mp4", theme_dir / "wallpaper.png", theme_dir / "wallpaper.jpg"
 
@@ -302,15 +335,20 @@ input * {
     xkb_layout "us"
 }
 
+# Ensure Waybar restarts when Sway reloads
 exec_always "pkill waybar; waybar"
 """
         if not main_conf.exists() or "FOOLISH-ALTERATION" not in main_conf.read_text():
             main_conf.write_text(base_config)
 
 if __name__ == "__main__":
+    if not os.environ.get("DISPLAY") and not os.environ.get("WAYLAND_DISPLAY"):
+        print("CRITICAL: No graphical display environment found. Tkinter cannot run from a raw TTY.")
+        sys.exit(1)
+        
     root = tk.Tk()
     style = ttk.Style(root)
     if 'clam' in style.theme_names():
         style.theme_use('clam')
-    app = SwayFXSetupWizard(root)
+    app = RobustSwayFXEngine(root)
     root.mainloop()
