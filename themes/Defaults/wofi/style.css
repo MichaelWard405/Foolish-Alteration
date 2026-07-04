@@ -1,0 +1,51 @@
+@import "colors.css";
+
+* {
+    font-family: "BigBlue Terminal", monospace;
+    border-radius: 0px;
+}
+
+window {
+    background-color: @bg;
+    border: 2px solid @accent;
+}
+
+#input {
+    margin: 10px;
+    padding: 10px;
+    background-color: #000000;
+    color: @accent;
+    border: 1px solid @border;
+}
+
+#inner-box {
+    margin: 5px;
+    background-color: @bg;
+}
+
+#outer-box {
+    margin: 5px;
+    background-color: @bg;
+}
+
+#scroll {
+    margin: 10px;
+}
+
+#text {
+    margin: 5px;
+    color: @fg;
+}
+
+#entry {
+    padding: 5px;
+}
+
+#entry:selected {
+    background-color: @accent;
+    color: @bg;
+}
+
+#entry:selected #text {
+    color: @bg;
+}

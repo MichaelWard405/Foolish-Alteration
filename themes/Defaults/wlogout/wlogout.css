@@ -1,0 +1,27 @@
+@import "colors.css";
+
+* {
+    font-family: "BigBlue Terminal", monospace;
+    background-image: none; /* Disables standard icons for the retro text aesthetic */
+    transition: none;
+    border-radius: 0px;
+}
+
+window {
+    background-color: rgba(26, 26, 26, 0.95); /* Semi-transparent solid charcoal background */
+}
+
+button {
+    color: @fg;
+    background-color: @bg-alt;
+    border: 2px solid @border;
+    margin: 15px;
+    font-size: 16px;
+}
+
+button:focus, button:active, button:hover {
+    background-color: @accent;
+    color: @bg;
+    border: 2px solid @accent;
+    outline-style: none;
+}

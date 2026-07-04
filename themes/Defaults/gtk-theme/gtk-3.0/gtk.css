@@ -1,0 +1,37 @@
+* {
+    font-family: "BigBlue Terminal", monospace;
+    border-radius: 0px !important; /* Blocky retro feel */
+}
+
+window, .background, .thunar .sidebar, .thunar .view, .thunar grid, .thunar paned {
+    background-color: #1a1a1a;
+    color: #d0d0d0;
+}
+
+headerbar, .titlebar {
+    background-color: #2d2d2d;
+    color: #ffb000;
+    border-bottom: 2px solid #ffb000;
+}
+
+button {
+    background-color: #2d2d2d;
+    color: #d0d0d0;
+    border: 1px solid #444444;
+}
+
+button:hover {
+    background-color: #ffb000;
+    color: #1a1a1a;
+}
+
+treeview:selected, list:selected, row:selected {
+    background-color: #ffb000;
+    color: #1a1a1a;
+}
+
+entry, searchbar {
+    background-color: #000000;
+    color: #ffb000;
+    border: 1px solid #ffb000;
+}
