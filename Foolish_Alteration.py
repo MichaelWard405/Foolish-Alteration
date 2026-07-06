@@ -1,5 +1,5 @@
 # ==============================================================================
-# FOOLISH-ALTERATION: MONOLITHIC BUILDER, HYBRID PACKAGE & FLATPAK INSTALLER
+# FOOLISH-ALTERATION: STABLE MONOLITHIC BUILDER & HYBRID INSTALLER
 # ==============================================================================
 
 import os
@@ -37,23 +37,20 @@ TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
-        self.root.title("Foolish-Alteration | Hybrid Installer")
+        self.root.title("Foolish-Alteration | Installer")
         self.root.geometry("550x650") 
         self.root.resizable(False, False)
 
         self.create_local_directories()
         self.sync_warehouse_to_local()
 
-        # Discover choices across cached files
+        # Discover configuration profiles
         self.available_themes = self.get_folders_in_dir(LOCAL_THEMES_DIR)
         self.available_layouts = self.get_folders_in_dir(LOCAL_LAYOUTS_DIR)
-        
-        # KEYBINDS FIX: Now scans for both bare files AND folders
         self.available_keybinds = self.get_all_items_in_dir(LOCAL_KEYBINDS_DIR)
-        
         self.available_packages = self.get_files_in_dir(LOCAL_PACKAGES_DIR) 
 
-        # Dropdown active state managers
+        # Dropdown state handlers
         self.selected_theme = tk.StringVar(value=self.get_default(self.available_themes))
         self.selected_layout = tk.StringVar(value=self.get_default(self.available_layouts))
         self.selected_keybind = tk.StringVar(value=self.get_default(self.available_keybinds))
@@ -61,8 +58,16 @@ class FoolishDeployer:
         self.build_ui()
 
     # --------------------------------------------------------------------------
-    # DIRECTORY SCANNING & MANAGEMENT
+    # CASE-INSENSITIVE FILE DETECTOR ENGINE
     # --------------------------------------------------------------------------
+    def find_file_flexible(self, directory: Path, keyword: str) -> Path or None:
+        """Finds a file within a folder ignoring strict capitalization rules."""
+        if not directory.exists(): return None
+        for item in directory.iterdir():
+            if item.is_file() and keyword.lower() in item.name.lower():
+                return item
+        return None
+
     def create_local_directories(self):
         dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR]
         for directory in dirs:
@@ -84,7 +89,7 @@ class FoolishDeployer:
         return item_list[0] if item_list else "None"
 
     # --------------------------------------------------------------------------
-    # GITHUB SYNC
+    # GITHUB WAREHOUSE SYNC
     # --------------------------------------------------------------------------
     def sync_warehouse_to_local(self):
         print("Syncing with GitHub Warehouse...")
@@ -104,17 +109,17 @@ class FoolishDeployer:
             for src, dest in git_map.items():
                 if src.exists():
                     shutil.copytree(src, dest, dirs_exist_ok=True)
-            print("Local Cache successfully updated.")
+            print("Local Warehouse Sync Complete.")
             
         except Exception as e:
-            print(f"Failed to sync with GitHub (Offline Mode active). Error: {e}")
+            print(f"Offline Mode Active. Sync skipped: {e}")
             
         finally:
             if TMP_GIT_DIR.exists():
                 shutil.rmtree(TMP_GIT_DIR)
 
     # --------------------------------------------------------------------------
-    # USER INTERFACE
+    # USER INTERFACE BUILDER
     # --------------------------------------------------------------------------
     def build_ui(self):
         main_frame = ttk.Frame(self.root, padding=20)
@@ -151,7 +156,7 @@ class FoolishDeployer:
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
     # --------------------------------------------------------------------------
-    # SYSTEM DEPLOYMENT & HYBRID PACKAGE INSTALLATION ENGINE
+    # DEPLOYMENT & CORE EXECUTION ENGINE
     # --------------------------------------------------------------------------
     def execute_deployment(self):
         try:
@@ -163,31 +168,33 @@ class FoolishDeployer:
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
-            # 1. CORE CONFIG ROUTING WITH SAFE INCLUDES (BUG FIX)
-            include_lines = []
+            # 1. ROBUST FLEXIBLE CONFIG PIPELINE
+            # Process Variables File
+            var_src = self.find_file_flexible(target_theme_dir, "variables.conf")
+            if var_src:
+                shutil.copy(var_src, sys_sway_vars)
+            else:
+                sys_sway_vars.write_text("# Placeholder Variables File\n")
 
-            # Theme Variables
-            if (target_theme_dir / "SwayVariables.conf").exists():
-                shutil.copy(target_theme_dir / "SwayVariables.conf", sys_sway_vars)
-                include_lines.append("include ~/.config/sway/SwayVariables.conf")
-
-            # Keybinds (Smart scan handles both bare files and folders)
+            # Process Keybinds File
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.conf"))
-                if confs:
-                    shutil.copy(confs[0], sys_keybind_file)
-                    include_lines.append("include ~/.config/sway/Foolish_Keybinds.conf")
+                if confs: shutil.copy(confs[0], sys_keybind_file)
+                else: sys_keybind_file.write_text("# Placeholder Keybinds File\n")
             elif keybind_src.is_file():
                 shutil.copy(keybind_src, sys_keybind_file)
-                include_lines.append("include ~/.config/sway/Foolish_Keybinds.conf")
+            else:
+                sys_keybind_file.write_text("# Placeholder Keybinds File\n")
 
-            # Layouts
-            if (target_layout_dir / "Layout.conf").exists(): 
-                shutil.copy(target_layout_dir / "Layout.conf", sys_layout_file)
-                include_lines.append("include ~/.config/sway/Foolish_Layout.conf")
+            # Process Layout File
+            layout_src = self.find_file_flexible(target_layout_dir, "layout.conf")
+            if layout_src:
+                shutil.copy(layout_src, sys_layout_file)
+            else:
+                sys_layout_file.write_text("# Placeholder Layout File\n")
 
-            # 2. PROCESS HYBRID PACKAGE ENGINE
+            # 2. SANDBOXED SOFTWARE PROVISIONING ENGINE
             packages_to_install = set()
             flatpaks_to_install = set()
 
@@ -203,7 +210,7 @@ class FoolishDeployer:
                     elif isinstance(data, list):
                         packages_to_install.update(data)
                 except Exception as err:
-                    print(f"Error indexing package map file {json_path.name}: {err}")
+                    print(f"Skipping package array read on {json_path.name}: {err}")
 
             selected_indices = self.pkg_listbox.curselection()
             for index in selected_indices:
@@ -212,15 +219,21 @@ class FoolishDeployer:
             parse_package_json(target_theme_dir / "package.json")
             parse_package_json(target_layout_dir / "package.json")
 
+            # Execute Pacman/Yay Routines (Safely wrapped so failures can't break configs)
             if packages_to_install:
-                pkg_list = list(packages_to_install)
-                pkg_manager = "yay" if shutil.which("yay") else "sudo pacman"
-                subprocess.run(f"{pkg_manager} -S --noconfirm --needed " + " ".join(pkg_list), shell=True)
+                try:
+                    pkg_list = list(packages_to_install)
+                    pkg_manager = "yay" if shutil.which("yay") else "sudo pacman"
+                    subprocess.run(f"{pkg_manager} -S --noconfirm --needed " + " ".join(pkg_list), shell=True)
+                except Exception as pe: print(f"Native package provision failure: {pe}")
 
+            # Execute Flatpak Routines
             if flatpaks_to_install:
-                flat_list = list(flatpaks_to_install)
-                if shutil.which("flatpak"):
-                    subprocess.run("flatpak install flathub --noconfirm " + " ".join(flat_list), shell=True)
+                try:
+                    flat_list = list(flatpaks_to_install)
+                    if shutil.which("flatpak"):
+                        subprocess.run("flatpak install flathub --noconfirm " + " ".join(flat_list), shell=True)
+                except Exception as fe: print(f"Flatpak application provision failure: {fe}")
 
             # 3. ROUTE WAYBAR CONFIGS
             local_waybar = target_theme_dir / "waybar"
@@ -239,7 +252,7 @@ class FoolishDeployer:
                 if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
                 shutil.copytree(local_wofi, WOFI_SYS_DIR)
 
-            # 5. MANAGE GTK DESIGN MATRIX & DARK FALLBACKS
+            # 5. MANAGE GTK THEME ASSIGNMENTS
             gtk_src = target_theme_dir / "gtk-theme"
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -251,19 +264,24 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
-            # 6. STITCH FINAL MASTER ENVIRONMENT STRING
-            # Notice the hyphen bug fix here: $gnome_schema instead of $gnome-schema
+            # 6. STITCH STRUCTURAL MASTER SWAY CONFIG 
+            # Fixed: Completely removed fragile parsing variables
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
-set $gnome_schema org.gnome.desktop.interface
-exec_always gsettings set $gnome_schema gtk-theme '{theme_to_set}'
-exec_always gsettings set $gnome_schema color-scheme 'prefer-dark'
-exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
+exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
+exec_always gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
 """
-            monolithic_config = "\n".join(include_lines) + f"\n{gtk_injection}\nexec_always pkill waybar; waybar\n"
+            monolithic_config = (
+                "include ~/.config/sway/SwayVariables.conf\n"
+                "include ~/.config/sway/Foolish_Keybinds.conf\n"
+                "include ~/.config/sway/Foolish_Layout.conf\n"
+                f"{gtk_injection}\n"
+                "exec_always pkill waybar; waybar\n"
+            )
             sys_main_config.write_text(monolithic_config)
 
-            # 7. FIRE SWAY SESSION DESKTOP HOT RELOAD
+            # 7. FORCE RE-LOAD ENVIRONMENT
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             self.show_success_and_exit()
@@ -292,4 +310,3 @@ if __name__ == "__main__":
     if 'clam' in style.theme_names(): style.theme_use('clam')
     app = FoolishDeployer(root)
     root.mainloop()
-
