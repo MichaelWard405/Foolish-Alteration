@@ -1,10 +1,6 @@
 # ==============================================================================
 # FOOLISH-ALTERATION: MONOLITHIC BUILDER, HYBRID PACKAGE & FLATPAK INSTALLER
 # ==============================================================================
-# This script manages a local cache of your GitHub repository.
-# It handles configuration deployment, native GTK dark themes, and separates
-# software configurations into native pacman/yay packages and Flathub flatpaks.
-# ==============================================================================
 
 import os
 import json
@@ -45,16 +41,16 @@ class FoolishDeployer:
         self.root.geometry("550x650") 
         self.root.resizable(False, False)
 
-        # Initialize local file directories
         self.create_local_directories()
-        
-        # Pull latest repository files from GitHub
         self.sync_warehouse_to_local()
 
         # Discover choices across cached files
         self.available_themes = self.get_folders_in_dir(LOCAL_THEMES_DIR)
         self.available_layouts = self.get_folders_in_dir(LOCAL_LAYOUTS_DIR)
-        self.available_keybinds = self.get_files_in_dir(LOCAL_KEYBINDS_DIR)
+        
+        # KEYBINDS FIX: Now scans for both bare files AND folders
+        self.available_keybinds = self.get_all_items_in_dir(LOCAL_KEYBINDS_DIR)
+        
         self.available_packages = self.get_files_in_dir(LOCAL_PACKAGES_DIR) 
 
         # Dropdown active state managers
@@ -62,7 +58,6 @@ class FoolishDeployer:
         self.selected_layout = tk.StringVar(value=self.get_default(self.available_layouts))
         self.selected_keybind = tk.StringVar(value=self.get_default(self.available_keybinds))
 
-        # Render application layout
         self.build_ui()
 
     # --------------------------------------------------------------------------
@@ -80,6 +75,10 @@ class FoolishDeployer:
     def get_files_in_dir(self, directory):
         if not directory.exists(): return ["None"]
         return [item.name for item in directory.iterdir() if item.is_file() and not item.name.startswith('.')]
+
+    def get_all_items_in_dir(self, directory):
+        if not directory.exists(): return ["None"]
+        return [item.name for item in directory.iterdir() if not item.name.startswith('.')]
 
     def get_default(self, item_list):
         return item_list[0] if item_list else "None"
@@ -123,7 +122,6 @@ class FoolishDeployer:
 
         ttk.Label(main_frame, text="Foolish Monolithic Builder & Installer", font=("Helvetica", 14, "bold")).pack(pady=10)
 
-        # Selection dropdown menus
         ttk.Label(main_frame, text="1. Select Theme:").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_theme, values=self.available_themes, state="readonly", width=45).pack(pady=5)
 
@@ -133,7 +131,6 @@ class FoolishDeployer:
         ttk.Label(main_frame, text="3. Select Keybinds:").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_keybind, values=self.available_keybinds, state="readonly", width=45).pack(pady=5)
 
-        # Interactive package multi-select listbox container
         ttk.Label(main_frame, text="4. Select Package Modules to Sync (Ctrl+Click):").pack(anchor='w', pady=(15, 0))
         
         pkg_frame = ttk.Frame(main_frame)
@@ -150,7 +147,6 @@ class FoolishDeployer:
             if item.endswith('.json'):
                 self.pkg_listbox.insert(tk.END, item)
 
-        # Trigger execution action
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
@@ -159,73 +155,72 @@ class FoolishDeployer:
     # --------------------------------------------------------------------------
     def execute_deployment(self):
         try:
-            # Source & target structures
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
             target_layout_dir = LOCAL_LAYOUTS_DIR / self.selected_layout.get()
-            target_keybind_file = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             
             sys_sway_vars = SWAY_SYS_DIR / "SwayVariables.conf"
             sys_layout_file = SWAY_SYS_DIR / "Foolish_Layout.conf"
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
-            # 1. MOVE CORE WINDOW MANAGER CONFIGS
+            # 1. CORE CONFIG ROUTING WITH SAFE INCLUDES (BUG FIX)
+            include_lines = []
+
+            # Theme Variables
             if (target_theme_dir / "SwayVariables.conf").exists():
                 shutil.copy(target_theme_dir / "SwayVariables.conf", sys_sway_vars)
-            
-            if target_keybind_file.exists(): shutil.copy(target_keybind_file, sys_keybind_file)
+                include_lines.append("include ~/.config/sway/SwayVariables.conf")
+
+            # Keybinds (Smart scan handles both bare files and folders)
+            keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
+            if keybind_src.is_dir():
+                confs = list(keybind_src.glob("*.conf"))
+                if confs:
+                    shutil.copy(confs[0], sys_keybind_file)
+                    include_lines.append("include ~/.config/sway/Foolish_Keybinds.conf")
+            elif keybind_src.is_file():
+                shutil.copy(keybind_src, sys_keybind_file)
+                include_lines.append("include ~/.config/sway/Foolish_Keybinds.conf")
+
+            # Layouts
             if (target_layout_dir / "Layout.conf").exists(): 
                 shutil.copy(target_layout_dir / "Layout.conf", sys_layout_file)
+                include_lines.append("include ~/.config/sway/Foolish_Layout.conf")
 
-            # 2. PROCESS HYBRID PACKAGE ENGINE (PACMAN vs FLATPAK Router)
+            # 2. PROCESS HYBRID PACKAGE ENGINE
             packages_to_install = set()
             flatpaks_to_install = set()
 
-            # Inner sorting logic engine to parse dictionary syntax mapping safely
             def parse_package_json(json_path):
                 if not json_path.exists(): return
                 try:
                     data = json.loads(json_path.read_text())
-                    # Format A: Dictionary format parsing (New splits)
                     if isinstance(data, dict):
                         flat_list = data.get("Flatpak", [])
                         if isinstance(flat_list, list): flatpaks_to_install.update(flat_list)
-                        
                         pac_list = data.get("Packages", [])
                         if isinstance(pac_list, list): packages_to_install.update(pac_list)
-                    # Format B: Array list parsing fallback (Legacy files support)
                     elif isinstance(data, list):
                         packages_to_install.update(data)
                 except Exception as err:
                     print(f"Error indexing package map file {json_path.name}: {err}")
 
-            # A. Scan listbox interface modules choices
             selected_indices = self.pkg_listbox.curselection()
             for index in selected_indices:
-                file_name = self.pkg_listbox.get(index)
-                parse_package_json(LOCAL_PACKAGES_DIR / file_name)
+                parse_package_json(LOCAL_PACKAGES_DIR / self.pkg_listbox.get(index))
 
-            # B. Scan active theme layout system profiles dependencies 
             parse_package_json(target_theme_dir / "package.json")
             parse_package_json(target_layout_dir / "package.json")
 
-            # C. Execute Native Arch Package Installation
             if packages_to_install:
                 pkg_list = list(packages_to_install)
-                print(f"Syncing Arch core dependencies: {pkg_list}")
                 pkg_manager = "yay" if shutil.which("yay") else "sudo pacman"
-                cmd = f"{pkg_manager} -S --noconfirm --needed " + " ".join(pkg_list)
-                subprocess.run(cmd, shell=True)
+                subprocess.run(f"{pkg_manager} -S --noconfirm --needed " + " ".join(pkg_list), shell=True)
 
-            # D. Execute Sandboxed Flathub Flatpak Installation
             if flatpaks_to_install:
                 flat_list = list(flatpaks_to_install)
-                print(f"Syncing Sandboxed Flathub applications: {flat_list}")
                 if shutil.which("flatpak"):
-                    cmd = "flatpak install flathub --noconfirm " + " ".join(flat_list)
-                    subprocess.run(cmd, shell=True)
-                else:
-                    print("Error: 'flatpak' binary system module missing from runtime path. Skipping Flatpaks.")
+                    subprocess.run("flatpak install flathub --noconfirm " + " ".join(flat_list), shell=True)
 
             # 3. ROUTE WAYBAR CONFIGS
             local_waybar = target_theme_dir / "waybar"
@@ -257,24 +252,18 @@ class FoolishDeployer:
                 theme_to_set = "Adwaita-dark"
 
             # 6. STITCH FINAL MASTER ENVIRONMENT STRING
+            # Notice the hyphen bug fix here: $gnome_schema instead of $gnome-schema
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
-set $gnome-schema org.gnome.desktop.interface
-exec_always gsettings set $gnome-schema gtk-theme '{theme_to_set}'
-exec_always gsettings set $gnome-schema color-scheme 'prefer-dark'
+set $gnome_schema org.gnome.desktop.interface
+exec_always gsettings set $gnome_schema gtk-theme '{theme_to_set}'
+exec_always gsettings set $gnome_schema color-scheme 'prefer-dark'
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
 """
-            monolithic_config = (
-                "include ~/.config/sway/SwayVariables.conf\n"
-                f"{gtk_injection}\n"
-                "include ~/.config/sway/Foolish_Keybinds.conf\n"
-                "include ~/.config/sway/Foolish_Layout.conf\n\n"
-                "exec_always pkill waybar; waybar\n"
-            )
+            monolithic_config = "\n".join(include_lines) + f"\n{gtk_injection}\nexec_always pkill waybar; waybar\n"
             sys_main_config.write_text(monolithic_config)
 
             # 7. FIRE SWAY SESSION DESKTOP HOT RELOAD
-            print("Triggering Sway Reload...")
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             
             self.show_success_and_exit()
