@@ -1,5 +1,5 @@
 # ==============================================================================
-# FOOLISH-ALTERATION: MONOLITHIC BUILDER (FULL CASE-INSENSITIVE & TRUE CHECKBOX)
+# FOOLISH-ALTERATION: MONOLITHIC BUILDER (FIXED FLATPAK FLAGS)
 # ==============================================================================
 
 import os
@@ -15,13 +15,11 @@ from pathlib import Path
 # ------------------------------------------------------------------------------
 HOME_DIR = Path.home()
 
-# System target config folders
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
 WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
 WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
 THEMES_SYS_DIR = HOME_DIR / ".themes" 
 
-# Local offline storage cache
 MASTER_LOCAL_DIR = HOME_DIR / ".local/share/Foolish-Alteration"
 LOCAL_THEMES_DIR = MASTER_LOCAL_DIR / "Themes"
 LOCAL_LAYOUTS_DIR = MASTER_LOCAL_DIR / "Layouts"
@@ -44,24 +42,18 @@ class FoolishDeployer:
         self.create_local_directories()
         self.sync_warehouse_to_local()
 
-        # Discover configuration profiles
         self.available_themes = self.get_folders_in_dir(LOCAL_THEMES_DIR)
         self.available_layouts = self.get_folders_in_dir(LOCAL_LAYOUTS_DIR)
         self.available_keybinds = self.get_all_items_in_dir(LOCAL_KEYBINDS_DIR)
         self.available_packages = self.get_files_in_dir(LOCAL_PACKAGES_DIR) 
 
-        # Dropdown state handlers
         self.selected_theme = tk.StringVar(value=self.get_default(self.available_themes))
         self.selected_layout = tk.StringVar(value=self.get_default(self.available_layouts))
         self.selected_keybind = tk.StringVar(value=self.get_default(self.available_keybinds))
 
         self.build_ui()
 
-    # --------------------------------------------------------------------------
-    # CASE-INSENSITIVE DIRECTORY & FILE ENGINES
-    # --------------------------------------------------------------------------
     def find_dir_flexible(self, parent_dir: Path, keyword: str) -> Path or None:
-        """Locates a directory inside a folder ignoring capitalization."""
         if not parent_dir.exists(): return None
         for item in parent_dir.iterdir():
             if item.is_dir() and keyword.lower() == item.name.lower():
@@ -69,13 +61,10 @@ class FoolishDeployer:
         return None
 
     def find_file_flexible(self, directory: Path, keyword: str) -> Path or None:
-        """Locates a file within a folder ignoring strict capitalization rules."""
         if not directory.exists(): return None
-        # Phase 1: Check for exact stem matching (e.g., 'layout.conf' matching 'layout')
         for item in directory.iterdir():
             if item.is_file() and item.name.lower().split('.')[0] == keyword.lower():
                 return item
-        # Phase 2: Fallback to simple substring inclusion matching
         for item in directory.iterdir():
             if item.is_file() and keyword.lower() in item.name.lower():
                 return item
@@ -104,9 +93,6 @@ class FoolishDeployer:
     def get_default(self, item_list):
         return item_list[0] if item_list else "None"
 
-    # --------------------------------------------------------------------------
-    # GITHUB WAREHOUSE SYNC (CASE-INSENSITIVE MATCHING)
-    # --------------------------------------------------------------------------
     def sync_warehouse_to_local(self):
         print("Syncing with GitHub Warehouse...")
         if TMP_GIT_DIR.exists():
@@ -135,9 +121,6 @@ class FoolishDeployer:
             if TMP_GIT_DIR.exists():
                 shutil.rmtree(TMP_GIT_DIR)
 
-    # --------------------------------------------------------------------------
-    # USER INTERFACE BUILDER (TRUE CHECKBOX GRID)
-    # --------------------------------------------------------------------------
     def build_ui(self):
         main_frame = ttk.Frame(self.root, padding=20)
         main_frame.pack(fill='both', expand=True)
@@ -153,7 +136,6 @@ class FoolishDeployer:
         ttk.Label(main_frame, text="3. Select Keybinds:").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_keybind, values=self.available_keybinds, state="readonly", width=45).pack(pady=5)
 
-        # True Multi-Choice Checkbox Area with Scrollbars
         ttk.Label(main_frame, text="4. Select Package Modules to Sync:").pack(anchor='w', pady=(15, 0))
         
         pkg_frame = ttk.Frame(main_frame, relief="groove", borderwidth=1)
@@ -174,7 +156,6 @@ class FoolishDeployer:
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Dynamically inject clean checkbuttons
         self.package_checkbox_vars = {}
         for item in self.available_packages:
             if item.endswith('.json'):
@@ -187,7 +168,7 @@ class FoolishDeployer:
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
     # --------------------------------------------------------------------------
-    # DEPLOYMENT ENGINE
+    # CORE DEPLOYMENT PIPELINE
     # --------------------------------------------------------------------------
     def execute_deployment(self):
         try:
@@ -199,14 +180,13 @@ class FoolishDeployer:
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
-            # 1. STRICT CONFIG PIPELINE
-            # Process Variables File
+            # 1. Process Variables File
             var_src = self.find_file_flexible(target_theme_dir, "variables")
             if not var_src:
                 raise FileNotFoundError(f"Could not find a 'variables' config file under theme: {target_theme_dir.name}")
             shutil.copy(var_src, sys_sway_vars)
 
-            # Process Keybinds File
+            # 2. Process Keybinds File
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.[cC][oO][nN][fF]"))
@@ -220,13 +200,13 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
-            # Process Layout File
+            # 3. Process Layout File
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
-            # 2. SANDBOXED SOFTWARE PROVISIONING ENGINE
+            # 4. Process Packages Logic
             packages_to_install = set()
             flatpaks_to_install = set()
 
@@ -236,20 +216,16 @@ class FoolishDeployer:
                 try:
                     data = json.loads(json_path.read_text())
                     if isinstance(data, dict):
-                        # Force keys to lowercase to be 100% immune to JSON key case variation
                         normalized_data = {k.lower(): v for k, v in data.items()}
-                        
                         flat_list = normalized_data.get("flatpak", [])
                         if isinstance(flat_list, list): flatpaks_to_install.update(flat_list)
-                        
                         pac_list = normalized_data.get("packages", [])
                         if isinstance(pac_list, list): packages_to_install.update(pac_list)
                     elif isinstance(data, list):
                         packages_to_install.update(data)
                 except Exception as err:
-                    print(f"Skipping unreadable package array context {json_path.name}: {err}")
+                    print(f"Skipping package JSON processing for {json_path.name}: {err}")
 
-            # Gather selections from checkbox parameters
             for json_file, var in self.package_checkbox_vars.items():
                 if var.get():
                     parse_package_json(LOCAL_PACKAGES_DIR / json_file)
@@ -257,23 +233,23 @@ class FoolishDeployer:
             parse_package_json(self.find_file_flexible(target_theme_dir, "package") or target_theme_dir / "package.json")
             parse_package_json(self.find_file_flexible(target_layout_dir, "package") or target_layout_dir / "package.json")
 
-            # Run Pacman/Yay installations safely
+            # Native Array Install (Pacman / Yay)
             if packages_to_install:
                 try:
                     pkg_list = list(packages_to_install)
                     pkg_manager = "yay" if shutil.which("yay") else "sudo pacman"
                     subprocess.run(f"{pkg_manager} -S --noconfirm --needed " + " ".join(pkg_list), shell=True)
-                except Exception as pe: print(f"Native app provision skip: {pe}")
+                except Exception as pe: print(f"Native package manager provision skipped: {pe}")
 
-            # Run Flatpak installations safely
+            # Flatpak Array Install (FIXED: Uses -y instead of --noconfirm)
             if flatpaks_to_install:
                 try:
                     flat_list = list(flatpaks_to_install)
                     if shutil.which("flatpak"):
-                        subprocess.run("flatpak install flathub --noconfirm " + " ".join(flat_list), shell=True)
-                except Exception as fe: print(f"Flatpak app provision skip: {fe}")
+                        subprocess.run("flatpak install -y flathub " + " ".join(flat_list), shell=True)
+                except Exception as fe: print(f"Flatpak framework provision skipped: {fe}")
 
-            # 3. ROUTE WAYBAR CONFIGS
+            # 5. Waybar Routing
             local_waybar = self.find_dir_flexible(target_theme_dir, "waybar") or (target_theme_dir / "waybar")
             local_colours = self.find_file_flexible(target_theme_dir, "colours.css") or (target_theme_dir / "colours.css")
             if local_waybar.exists():
@@ -284,13 +260,13 @@ class FoolishDeployer:
                 legacy_json = WAYBAR_SYS_DIR / "waybar.json"
                 if legacy_json.exists(): legacy_json.rename(WAYBAR_SYS_DIR / "config")
 
-            # 4. ROUTE WOFI CONFIGS
+            # 6. Wofi Routing
             local_wofi = self.find_dir_flexible(target_theme_dir, "wofi") or (target_theme_dir / "wofi")
             if local_wofi.exists():
                 if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
                 shutil.copytree(local_wofi, WOFI_SYS_DIR)
 
-            # 5. GTK THEME MAPPING ROUTINES
+            # 7. GTK Assignments
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -302,7 +278,7 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
-            # 6. STITCH STRUCTURAL MASTER SWAY CONFIG
+            # 8. STITCH STRUCTURAL MASTER SWAY CONFIG
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
@@ -311,14 +287,14 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
 """
             monolithic_config = (
                 "include ~/.config/sway/SwayVariables.conf\n"
-                "include ~/.config/sway/Foolish_Keybinds.conf\n"
                 "include ~/.config/sway/Foolish_Layout.conf\n"
+                "include ~/.config/sway/Foolish_Keybinds.conf\n"
                 f"{gtk_injection}\n"
                 "exec_always pkill waybar; waybar\n"
             )
             sys_main_config.write_text(monolithic_config)
 
-            # 7. RELOAD ENVIRONMENT
+            # 9. Reload Environment Safely
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.show_success_and_exit()
 
