@@ -1,5 +1,5 @@
 # ==============================================================================
-# FOOLISH-ALTERATION: MONOLITHIC BUILDER (WITH MEDIA SERVICE AUTOMATION)
+# FOOLISH-ALTERATION: MONOLITHIC BUILDER (WITH CUSTOM COMMAND EXECUTION)
 # ==============================================================================
 
 import os
@@ -206,9 +206,10 @@ class FoolishDeployer:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
-            # 4. Process Packages Logic
+            # 4. Process Packages Logic (UPDATED WITH COMMAND PARSER)
             packages_to_install = set()
             flatpaks_to_install = set()
+            custom_commands = []
 
             def parse_package_json(json_path):
                 if not json_path.exists() or json_path.stat().st_size == 0: 
@@ -217,10 +218,16 @@ class FoolishDeployer:
                     data = json.loads(json_path.read_text())
                     if isinstance(data, dict):
                         normalized_data = {k.lower(): v for k, v in data.items()}
+                        
                         flat_list = normalized_data.get("flatpak", [])
                         if isinstance(flat_list, list): flatpaks_to_install.update(flat_list)
+                        
                         pac_list = normalized_data.get("packages", [])
                         if isinstance(pac_list, list): packages_to_install.update(pac_list)
+                        
+                        cmd_list = normalized_data.get("commands", [])
+                        if isinstance(cmd_list, list): custom_commands.extend(cmd_list)
+                        
                     elif isinstance(data, list):
                         packages_to_install.update(data)
                 except Exception as err:
@@ -246,6 +253,17 @@ class FoolishDeployer:
                     if shutil.which("flatpak"):
                         subprocess.run("flatpak install -y flathub " + " ".join(flat_list), shell=True)
                 except Exception as fe: print(f"Flatpak framework provision skipped: {fe}")
+                
+            # Execute Custom Commands (e.g., LazyVim cloning)
+            if custom_commands:
+                print("Executing custom package commands...")
+                for cmd in custom_commands:
+                    try:
+                        # Safely expand the ~ symbol into the full home directory path
+                        expanded_cmd = cmd.replace("~", str(HOME_DIR))
+                        subprocess.run(expanded_cmd, shell=True)
+                    except Exception as ce:
+                        print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
             # 5. Waybar Routing
             local_waybar = self.find_dir_flexible(target_theme_dir, "waybar") or (target_theme_dir / "waybar")
@@ -284,7 +302,7 @@ class FoolishDeployer:
                     check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
                 )
             except Exception as se:
-                print(f"Failed to enable media services (Are you on a non-systemd distro?): {se}")
+                print(f"Failed to enable media services: {se}")
 
             # 9. STITCH STRUCTURAL MASTER SWAY CONFIG
             gtk_injection = f"""
@@ -298,7 +316,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
                 "include ~/.config/sway/Foolish_Layout.conf\n"
                 "include ~/.config/sway/Foolish_Keybinds.conf\n"
                 f"{gtk_injection}\n"
-                "exec_always pkill waybar; waybar\n"
+                "exec_always \"killall waybar; sleep 1; waybar\"\n"
             )
             sys_main_config.write_text(monolithic_config)
 
