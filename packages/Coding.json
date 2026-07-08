@@ -15,6 +15,12 @@
     "rm -rf ~/.local/state/nvim",
     "rm -rf ~/.cache/nvim",
     "git clone https://github.com/LazyVim/starter ~/.config/nvim",
-    "rm -rf ~/.config/nvim/.git"
+    "rm -rf ~/.config/nvim/.git",
+    
+    "echo 'return {' > ~/.config/nvim/lua/plugins/added_plugins.lua",
+    "echo '  { \"akinsho/toggleterm.nvim\", version = \"*\", config = true },' >> ~/.config/nvim/lua/plugins/added_plugins.lua",
+    "echo '  { \"iamcco/markdown-preview.nvim\", build = \"cd app && npm install\", init = function() vim.g.mkdp_filetypes = { \"markdown\" } end, ft = { \"markdown\" } },' >> ~/.config/nvim/lua/plugins/added_plugins.lua",
+    "echo '  { \"christoomey/vim-tmux-navigator\" }' >> ~/.config/nvim/lua/plugins/added_plugins.lua",
+    "echo '}' >> ~/.config/nvim/lua/plugins/added_plugins.lua"
   ]
 }
