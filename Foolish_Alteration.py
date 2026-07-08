@@ -1,5 +1,5 @@
 # ==============================================================================
-# FOOLISH-ALTERATION: MONOLITHIC BUILDER (FIXED FLATPAK FLAGS)
+# FOOLISH-ALTERATION: MONOLITHIC BUILDER (WITH MEDIA SERVICE AUTOMATION)
 # ==============================================================================
 
 import os
@@ -233,7 +233,6 @@ class FoolishDeployer:
             parse_package_json(self.find_file_flexible(target_theme_dir, "package") or target_theme_dir / "package.json")
             parse_package_json(self.find_file_flexible(target_layout_dir, "package") or target_layout_dir / "package.json")
 
-            # Native Array Install (Pacman / Yay)
             if packages_to_install:
                 try:
                     pkg_list = list(packages_to_install)
@@ -241,7 +240,6 @@ class FoolishDeployer:
                     subprocess.run(f"{pkg_manager} -S --noconfirm --needed " + " ".join(pkg_list), shell=True)
                 except Exception as pe: print(f"Native package manager provision skipped: {pe}")
 
-            # Flatpak Array Install (FIXED: Uses -y instead of --noconfirm)
             if flatpaks_to_install:
                 try:
                     flat_list = list(flatpaks_to_install)
@@ -277,8 +275,18 @@ class FoolishDeployer:
                 theme_to_set = custom_gtk_name
             else:
                 theme_to_set = "Adwaita-dark"
+                
+            # 8. ENABLE WAYLAND MEDIA SERVICES
+            try:
+                print("Enabling PipeWire audio & Wayland streaming services...")
+                subprocess.run(
+                    ["systemctl", "--user", "enable", "--now", "pipewire", "pipewire-pulse", "wireplumber"],
+                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+            except Exception as se:
+                print(f"Failed to enable media services (Are you on a non-systemd distro?): {se}")
 
-            # 8. STITCH STRUCTURAL MASTER SWAY CONFIG
+            # 9. STITCH STRUCTURAL MASTER SWAY CONFIG
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
@@ -294,7 +302,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             )
             sys_main_config.write_text(monolithic_config)
 
-            # 9. Reload Environment Safely
+            # 10. Reload Environment Safely
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.show_success_and_exit()
 
