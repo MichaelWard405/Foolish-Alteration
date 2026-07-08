@@ -1,0 +1,12 @@
+{
+  "Flatpak": [
+    "dev.vencord.Vesktop"
+  ],
+  "Packages": [
+    "pipewire",
+    "wireplumber",
+    "pipewire-pulse",
+    "xdg-desktop-portal",
+    "xdg-desktop-portal-wlr"
+  ]
+}
