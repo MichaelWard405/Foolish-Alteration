@@ -1,6 +1,6 @@
-# ==============================================================================
-# FOOLISH-ALTERATION: MONOLITHIC BUILDER (WITH CUSTOM COMMAND EXECUTION)
-# ==============================================================================
+# ========================================
+#  FOOLISH-ALTERATION: MONOLITHIC BUILDER
+# ========================================
 
 import os
 import json
@@ -10,9 +10,6 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from pathlib import Path
 
-# ------------------------------------------------------------------------------
-# 1. DEFINE ALL MASTER PATHS
-# ------------------------------------------------------------------------------
 HOME_DIR = Path.home()
 
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
@@ -29,9 +26,6 @@ LOCAL_PACKAGES_DIR = MASTER_LOCAL_DIR / "Packages"
 GITHUB_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 
-# ------------------------------------------------------------------------------
-# 2. MAIN APPLICATION CLASS
-# ------------------------------------------------------------------------------
 class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
@@ -167,9 +161,6 @@ class FoolishDeployer:
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
-    # --------------------------------------------------------------------------
-    # CORE DEPLOYMENT PIPELINE
-    # --------------------------------------------------------------------------
     def execute_deployment(self):
         try:
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
@@ -180,13 +171,11 @@ class FoolishDeployer:
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
-            # 1. Process Variables File
             var_src = self.find_file_flexible(target_theme_dir, "variables")
             if not var_src:
                 raise FileNotFoundError(f"Could not find a 'variables' config file under theme: {target_theme_dir.name}")
             shutil.copy(var_src, sys_sway_vars)
 
-            # 2. Process Keybinds File
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.[cC][oO][nN][fF]"))
@@ -200,13 +189,11 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
-            # 3. Process Layout File
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
-            # 4. Process Packages Logic (UPDATED WITH COMMAND PARSER)
             packages_to_install = set()
             flatpaks_to_install = set()
             custom_commands = []
@@ -254,18 +241,15 @@ class FoolishDeployer:
                         subprocess.run("flatpak install -y flathub " + " ".join(flat_list), shell=True)
                 except Exception as fe: print(f"Flatpak framework provision skipped: {fe}")
                 
-            # Execute Custom Commands (e.g., LazyVim cloning)
             if custom_commands:
                 print("Executing custom package commands...")
                 for cmd in custom_commands:
                     try:
-                        # Safely expand the ~ symbol into the full home directory path
                         expanded_cmd = cmd.replace("~", str(HOME_DIR))
                         subprocess.run(expanded_cmd, shell=True)
                     except Exception as ce:
                         print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
-            # 5. Waybar Routing
             local_waybar = self.find_dir_flexible(target_theme_dir, "waybar") or (target_theme_dir / "waybar")
             local_colours = self.find_file_flexible(target_theme_dir, "colours.css") or (target_theme_dir / "colours.css")
             if local_waybar.exists():
@@ -276,13 +260,11 @@ class FoolishDeployer:
                 legacy_json = WAYBAR_SYS_DIR / "waybar.json"
                 if legacy_json.exists(): legacy_json.rename(WAYBAR_SYS_DIR / "config")
 
-            # 6. Wofi Routing
             local_wofi = self.find_dir_flexible(target_theme_dir, "wofi") or (target_theme_dir / "wofi")
             if local_wofi.exists():
                 if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
                 shutil.copytree(local_wofi, WOFI_SYS_DIR)
 
-            # 7. GTK Assignments
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -293,8 +275,16 @@ class FoolishDeployer:
                 theme_to_set = custom_gtk_name
             else:
                 theme_to_set = "Adwaita-dark"
+
+            flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
+            if flex_wp and flex_wp.exists():
+                for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
+                    try: old_wp.unlink()
+                    except: pass
                 
-            # 8. ENABLE WAYLAND MEDIA SERVICES
+                sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{flex_wp.suffix}"
+                shutil.copy(flex_wp, sys_wp_dest)
+
             try:
                 print("Enabling PipeWire audio & Wayland streaming services...")
                 subprocess.run(
@@ -304,9 +294,7 @@ class FoolishDeployer:
             except Exception as se:
                 print(f"Failed to enable media services: {se}")
 
-            # 9. STITCH STRUCTURAL MASTER SWAY CONFIG
             gtk_injection = f"""
-# --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
 exec_always gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
@@ -320,7 +308,6 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             )
             sys_main_config.write_text(monolithic_config)
 
-            # 10. Reload Environment Safely
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.show_success_and_exit()
 
@@ -338,9 +325,6 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             messagebox.showerror("Deployment Halted", f"Repository parsing verification failed:\n\n{error_msg}")
         self.root.after(0, callback)
 
-# ------------------------------------------------------------------------------
-# ENTRY POINT
-# ------------------------------------------------------------------------------
 if __name__ == "__main__":
     root = tk.Tk()
     style = ttk.Style(root)
