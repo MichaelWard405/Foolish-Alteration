@@ -1,0 +1,30 @@
+window {
+    margin: 0px;
+    border: 2px solid #ff7eb6;
+    background-color: #1a1b26;
+    font-family: "Cozette", "Misaki", monospace;
+    font-size: 16px;
+    border-radius: 0px;
+}
+
+#outer-box {
+    margin: 5px;
+    border: none;
+}
+
+#input {
+    margin: 10px;
+    border: 1px solid #565f89;
+    color: #7dcfff;
+    background-color: #16161e;
+    border-radius: 0px;
+    padding: 4px;
+}
+
+#input:focus { border: 1px solid #7dcfff; }
+#inner-box { margin: 5px; border: none; background-color: transparent; }
+#scroll { margin: 5px; border: none; }
+#text { margin: 5px; border: none; color: #7dcfff; }
+
+#entry:selected { background-color: #ff7eb6; }
+#entry:selected #text { color: #1a1b26; font-weight: bold; }
