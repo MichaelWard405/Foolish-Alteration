@@ -356,9 +356,11 @@ class FoolishDeployer:
                 
                 # If target asset is a video format, route into mpvpaper wrapper, else default to native engine
                 if detected_ext in ['.mp4', '.mkv', '.webm']:
-                    sway_command = f"exec_always pkill mpvpaper; mpvpaper -o \"loop no-audio\" '*' {sys_wp_dest}\n"
+                    # Wrap the shell commands in quotes so Sway knows they belong together
+                    sway_command = f"exec_always \"pkill mpvpaper; mpvpaper -o 'loop no-audio' '*' {sys_wp_dest}\"\n"
                 else:
-                    sway_command = f"exec_always pkill mpvpaper; output * bg {sys_wp_dest} fill\n"
+                    # Separate the shell command (pkill) and the native Sway command (output) onto new lines
+                    sway_command = f"exec_always pkill mpvpaper\noutput * bg {sys_wp_dest} fill\n"
                     
                 sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
             else:
