@@ -340,15 +340,30 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
-            # 7.5 Wallpaper Routing
+            # 7.5 Automated Wallpaper Media Engine Routing & Configuration Injection
             flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
+            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
+            
+            # Housekeeping: Wipe out any old wallpaper targets to avoid mixed file ghosts
+            for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
+                try: old_wp.unlink()
+                except: pass
+            
             if flex_wp and flex_wp.exists():
-                for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
-                    try: old_wp.unlink()
-                    except: pass
-                
-                sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{flex_wp.suffix}"
+                detected_ext = flex_wp.suffix.lower()
+                sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{detected_ext}"
                 shutil.copy(flex_wp, sys_wp_dest)
+                
+                # If target asset is a video format, route into mpvpaper wrapper, else default to native engine
+                if detected_ext in ['.mp4', '.mkv', '.webm']:
+                    sway_command = f"exec_always pkill mpvpaper; mpvpaper -o \"loop no-audio\" '*' {sys_wp_dest}\n"
+                else:
+                    sway_command = f"exec_always pkill mpvpaper; output * bg {sys_wp_dest} fill\n"
+                    
+                sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
+            else:
+                # Solid color baseline fallback if the theme configuration misses a background graphic
+                sys_wp_conf.write_text("# Generated automatically by Foolish Installer\noutput * bg #141111 solid\n")
 
             # 8. Enable Wayland Media Services
             try:
@@ -371,6 +386,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
                 "include ~/.config/sway/SwayVariables.conf\n"
                 "include ~/.config/sway/Foolish_Layout.conf\n"
                 "include ~/.config/sway/Foolish_Keybinds.conf\n"
+                "include ~/.config/sway/wallpaper.conf\n"
                 f"{gtk_injection}\n"
                 "exec_always \"killall waybar; sleep 1; waybar\"\n"
             )
