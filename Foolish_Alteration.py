@@ -160,7 +160,6 @@ class FoolishDeployer:
 
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
-
     def execute_deployment(self):
         try:
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
@@ -265,6 +264,16 @@ class FoolishDeployer:
                 if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
                 shutil.copytree(local_wofi, WOFI_SYS_DIR)
 
+            local_scripts = self.find_dir_flexible(target_theme_dir, "scripts") or (target_theme_dir / "scripts")
+            sys_scripts_dir = SWAY_SYS_DIR / "scripts"
+            if local_scripts.exists():
+                if sys_scripts_dir.exists(): shutil.rmtree(sys_scripts_dir)
+                shutil.copytree(local_scripts, sys_scripts_dir)
+                
+                for script_file in sys_scripts_dir.rglob("*"):
+                    if script_file.is_file():
+                        script_file.chmod(script_file.stat().st_mode | 0o111)
+
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -293,7 +302,6 @@ class FoolishDeployer:
                 )
             except Exception as se:
                 print(f"Failed to enable media services: {se}")
-
             gtk_injection = f"""
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
 exec_always gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
