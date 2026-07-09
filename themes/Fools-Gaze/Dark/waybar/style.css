@@ -1,15 +1,19 @@
+/* ==============================================================================
+ * WAYBAR STYLING (FOOLS GAZE PASTEL RED)
+ * ============================================================================== */
+
 * {
     border: none;
     border-radius: 0;
-    font-family: "Cozette", "Misaki", monospace;
-    font-size: 14px;
+    font-family: "Cozette", "Misaki", "VT323", monospace;
+    font-size: 15px;
     min-height: 0;
 }
 
 window#waybar {
-    background-color: #1a1b26;
-    border-bottom: 2px solid #ff7eb6;
-    color: #7dcfff;
+    background-color: #141111;
+    border-bottom: 2px solid #ff6b6b;
+    color: #f4eaea;
 }
 
 #modules-left, #modules-center, #modules-right {
@@ -17,39 +21,41 @@ window#waybar {
     padding: 2px 4px;
 }
 
+/* Workspaces Module */
 #workspaces button {
     padding: 0 8px;
-    color: #565f89;
+    color: #857070;
     background: transparent;
 }
 
 #workspaces button.focused {
-    color: #ff7eb6;
+    color: #ff6b6b;
     font-weight: bold;
 }
 
 #workspaces button.urgent {
-    color: #ff007c;
+    color: #ef4444;
 }
 
 #workspaces button:hover {
-    background: rgba(255, 126, 182, 0.1);
-    color: #7dcfff;
+    background: rgba(255, 107, 107, 0.1);
+    color: #f4eaea;
 }
 
+/* System Modules Formatting */
 #clock, #cpu, #memory, #pulseaudio, #network, #battery, #tray {
     padding: 0 10px;
     margin: 0px;
-    color: #7dcfff;
+    color: #f4eaea;
 }
 
 #clock {
-    color: #ff7eb6;
+    color: #ffb37b;
     font-weight: bold;
 }
 
 #battery.critical {
-    color: #ff007c; 
+    color: #ef4444; 
     animation-name: blink; 
     animation-duration: 0.5s; 
     animation-timing-function: linear; 
@@ -58,5 +64,5 @@ window#waybar {
 }
 
 @keyframes blink {
-    to { color: #7dcfff; background-color: #ff007c; }
+    to { color: #141111; background-color: #ef4444; }
 }

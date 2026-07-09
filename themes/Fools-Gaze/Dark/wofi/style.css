@@ -1,8 +1,12 @@
+/* ==============================================================================
+ * WOFI STYLING PROFILE (FOOLS GAZE PASTEL RED)
+ * ============================================================================== */
+
 window {
     margin: 0px;
-    border: 2px solid #ff7eb6;
-    background-color: #1a1b26;
-    font-family: "Cozette", "Misaki", monospace;
+    border: 2px solid #ff6b6b;
+    background-color: #141111;
+    font-family: "Cozette", "Misaki", "VT323", monospace;
     font-size: 16px;
     border-radius: 0px;
 }
@@ -14,17 +18,39 @@ window {
 
 #input {
     margin: 10px;
-    border: 1px solid #565f89;
-    color: #7dcfff;
-    background-color: #16161e;
+    border: 1px solid #332929;
+    color: #f4eaea;
+    background-color: #1f1a1a;
     border-radius: 0px;
     padding: 4px;
 }
 
-#input:focus { border: 1px solid #7dcfff; }
-#inner-box { margin: 5px; border: none; background-color: transparent; }
-#scroll { margin: 5px; border: none; }
-#text { margin: 5px; border: none; color: #7dcfff; }
+#input:focus { 
+    border: 1px solid #ff6b6b; 
+}
 
-#entry:selected { background-color: #ff7eb6; }
-#entry:selected #text { color: #1a1b26; font-weight: bold; }
+#inner-box { 
+    margin: 5px; 
+    border: none; 
+    background-color: transparent; 
+}
+
+#scroll { 
+    margin: 5px; 
+    border: none; 
+    }
+
+#text { 
+    margin: 5px; 
+    border: none; 
+    color: #f4eaea; 
+}
+
+#entry:selected { 
+    background-color: #ff6b6b; 
+}
+
+#entry:selected #text { 
+    color: #141111; 
+    font-weight: bold; 
+}
