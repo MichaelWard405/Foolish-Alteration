@@ -1,0 +1,11 @@
+{
+  "packages":[
+    "lxappearance",
+    "papirus-icon-theme"
+  ],
+  "flatpak": [],
+  "commands": [
+    "gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'",
+    "gsettings set org.gnome.desktop.interface font-name 'Cozette 10'"
+  ]
+}
