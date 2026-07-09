@@ -1,0 +1,47 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "spacing": 4,
+    "modules-left": ["sway/workspaces", "sway/mode", "sway/window"],
+    "modules-center": ["clock"],
+    "modules-right": ["cpu", "memory", "pulseaudio", "network", "battery", "tray"],
+
+    "sway/workspaces": {
+        "disable-scroll": true,
+        "all-outputs": true,
+        "format": "[ {icon} ]",
+        "format-icons": {
+            "1": "I",
+            "2": "II",
+            "3": "III",
+            "4": "IV",
+            "5": "V",
+            "urgent": "!",
+            "focused": "*",
+            "default": "-"
+        }
+    },
+    "clock": {
+        "timezone": "auto",
+        "format": "TIME: {:%I:%M %p} | DATE: {%b %d}"
+    },
+    "cpu": { "format": "CPU: {usage}%" },
+    "memory": { "format": "RAM: {}%" },
+    "pulseaudio": {
+        "format": "VOL: {volume}%",
+        "format-muted": "VOL: MUTED",
+        "on-click": "pavucontrol"
+    },
+    "network": {
+        "format-wifi": "NET: {essid}",
+        "format-ethernet": "NET: LINKED",
+        "format-disconnected": "NET: OFFLINE"
+    },
+    "battery": {
+        "states": { "warning": 30, "critical": 15 },
+        "format": "BAT: {capacity}%",
+        "format-charging": "CHR: {capacity}%"
+    },
+    "tray": { "icon-size": 16, "spacing": 10 }
+}
