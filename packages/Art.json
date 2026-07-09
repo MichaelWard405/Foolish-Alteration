@@ -2,7 +2,7 @@
   "Flatpak": [
     "org.kde.krita",
     "org.blender.Blender",
-    "net.opentabletdriver.OpenTableDriver",
+    "net.opentabletdriver.OpenTabletDriver",
     "net.blockbench.Blockbench"
   ],
   "Packages": [
