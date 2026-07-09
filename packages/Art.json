@@ -1,0 +1,14 @@
+{
+  "Flatpak": [
+    "org.kde.krita",
+    "org.blender.Blender",
+    "net.opentabletdriver.OpenTableDriver",
+    "net.blockbench.Blockbench"
+  ],
+  "Packages": [
+
+  ],
+  "Commands": [
+
+  ]
+}
