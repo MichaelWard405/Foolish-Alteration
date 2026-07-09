@@ -184,6 +184,7 @@ class FoolishDeployer:
             sys_sway_vars = SWAY_SYS_DIR / "SwayVariables.conf"
             sys_layout_file = SWAY_SYS_DIR / "Foolish_Layout.conf"
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
+            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
             # 1. Process Variables File (Aesthetics)
@@ -342,9 +343,8 @@ class FoolishDeployer:
 
             # 7.5 Automated Wallpaper Media Engine Routing & Configuration Injection
             flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
-            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
             
-            # Housekeeping: Wipe out old processes
+            # Housekeeping: Wipe out old wallpaper targets
             for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
                 try: old_wp.unlink()
                 except: pass
@@ -354,17 +354,19 @@ class FoolishDeployer:
                 sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{detected_ext}"
                 shutil.copy(flex_wp, sys_wp_dest)
                 
-                # Logic: We use executables (swaybg and mpvpaper) so they can be managed via 'exec_always'
+                # Convert path to Absolute path to ensure Sway environment understands it perfectly
+                abs_wp_path = sys_wp_dest.resolve()
+                
                 if detected_ext in ['.mp4', '.mkv', '.webm']:
-                    # Video
-                    sway_command = f"exec_always pkill swaybg; exec_always \"pkill mpvpaper; mpvpaper -o 'loop no-audio' '*' {sys_wp_dest}\"\n"
+                    sway_command = f"exec_always killall swaybg; exec_always \"pkill mpvpaper; mpvpaper -o 'loop no-audio' '*' '{abs_wp_path}'\"\n"
                 else:
-                    # Static Image: Uses swaybg (The correct way to set backgrounds via script)
-                    sway_command = f"exec_always pkill mpvpaper; exec_always pkill swaybg; exec_always swaybg -i {sys_wp_dest} -m fill\n"
+                    sway_command = f"exec_always pkill mpvpaper; exec_always killall swaybg; exec_always swaybg -i '{abs_wp_path}' -m fill\n"
                     
                 sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
             else:
-                sys_wp_conf.write_text("# Generated automatically by Foolish Installer\nexec_always pkill swaybg; exec_always swaybg -c '#141111'\n")            # 8. Enable Wayland Media Services
+                sys_wp_conf.write_text("# Generated automatically by Foolish Installer\nexec_always killall swaybg; exec_always swaybg -c '#141111'\n")
+
+            # 8. Enable Wayland Media Services
             try:
                 print("Enabling PipeWire audio & Wayland streaming services...")
                 subprocess.run(
