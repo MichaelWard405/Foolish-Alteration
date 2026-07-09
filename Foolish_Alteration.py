@@ -1,6 +1,6 @@
-# ========================================
-#  FOOLISH-ALTERATION: MONOLITHIC BUILDER
-# ========================================
+# ==============================================================================
+# FOOLISH-ALTERATION: MONOLITHIC BUILDER (DECOUPLED LAYOUT & THEME ENGINE)
+# ==============================================================================
 
 import os
 import json
@@ -10,6 +10,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from pathlib import Path
 
+# ------------------------------------------------------------------------------
+# 1. DEFINE ALL MASTER PATHS
+# ------------------------------------------------------------------------------
 HOME_DIR = Path.home()
 
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
@@ -26,6 +29,9 @@ LOCAL_PACKAGES_DIR = MASTER_LOCAL_DIR / "Packages"
 GITHUB_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 
+# ------------------------------------------------------------------------------
+# 2. MAIN APPLICATION CLASS
+# ------------------------------------------------------------------------------
 class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
@@ -52,6 +58,9 @@ class FoolishDeployer:
         for item in parent_dir.iterdir():
             if item.is_dir() and keyword.lower() == item.name.lower():
                 return item
+        for item in parent_dir.rglob("*"):
+            if item.is_dir() and keyword.lower() == item.name.lower():
+                return item
         return None
 
     def find_file_flexible(self, directory: Path, keyword: str) -> Path or None:
@@ -61,6 +70,9 @@ class FoolishDeployer:
                 return item
         for item in directory.iterdir():
             if item.is_file() and keyword.lower() in item.name.lower():
+                return item
+        for item in directory.rglob("*"):
+            if item.is_file() and (keyword.lower() == item.name.lower().split('.')[0] or keyword.lower() in item.name.lower()):
                 return item
         return None
 
@@ -121,10 +133,10 @@ class FoolishDeployer:
 
         ttk.Label(main_frame, text="Foolish Monolithic Builder & Installer", font=("Helvetica", 14, "bold")).pack(pady=10)
 
-        ttk.Label(main_frame, text="1. Select Theme:").pack(anchor='w', pady=(5, 0))
+        ttk.Label(main_frame, text="1. Select Theme (Aesthetics):").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_theme, values=self.available_themes, state="readonly", width=45).pack(pady=5)
 
-        ttk.Label(main_frame, text="2. Select Layout:").pack(anchor='w', pady=(5, 0))
+        ttk.Label(main_frame, text="2. Select Layout (Structure):").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_layout, values=self.available_layouts, state="readonly", width=45).pack(pady=5)
 
         ttk.Label(main_frame, text="3. Select Keybinds:").pack(anchor='w', pady=(5, 0))
@@ -160,6 +172,10 @@ class FoolishDeployer:
 
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
+
+    # --------------------------------------------------------------------------
+    # CORE DEPLOYMENT PIPELINE
+    # --------------------------------------------------------------------------
     def execute_deployment(self):
         try:
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
@@ -170,11 +186,13 @@ class FoolishDeployer:
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
+            # 1. Process Variables File (Aesthetics)
             var_src = self.find_file_flexible(target_theme_dir, "variables")
             if not var_src:
                 raise FileNotFoundError(f"Could not find a 'variables' config file under theme: {target_theme_dir.name}")
             shutil.copy(var_src, sys_sway_vars)
 
+            # 2. Process Keybinds File
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.[cC][oO][nN][fF]"))
@@ -188,11 +206,13 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
+            # 3. Process Layout File (Structure)
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
+            # 4. Process Packages Logic
             packages_to_install = set()
             flatpaks_to_install = set()
             custom_commands = []
@@ -249,31 +269,66 @@ class FoolishDeployer:
                     except Exception as ce:
                         print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
-            local_waybar = self.find_dir_flexible(target_theme_dir, "waybar") or (target_theme_dir / "waybar")
-            local_colours = self.find_file_flexible(target_theme_dir, "colours.css") or (target_theme_dir / "colours.css")
-            if local_waybar.exists():
-                if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
-                shutil.copytree(local_waybar, WAYBAR_SYS_DIR)
-                if local_colours.exists():
-                    shutil.copy(local_colours, WAYBAR_SYS_DIR / "colours.css")
-                legacy_json = WAYBAR_SYS_DIR / "waybar.json"
-                if legacy_json.exists(): legacy_json.rename(WAYBAR_SYS_DIR / "config")
+            # 5. Decoupled Waybar Routing (Structure + Style Blend)
+            if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
+            WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
-            local_wofi = self.find_dir_flexible(target_theme_dir, "wofi") or (target_theme_dir / "wofi")
-            if local_wofi.exists():
-                if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
-                shutil.copytree(local_wofi, WOFI_SYS_DIR)
+            # Structure comes from LAYOUT folder
+            layout_waybar_dir = self.find_dir_flexible(target_layout_dir, "waybar") or target_layout_dir
+            layout_config = self.find_file_flexible(layout_waybar_dir, "config")
+            
+            # Aesthetics come from THEME folder
+            theme_waybar_dir = self.find_dir_flexible(target_theme_dir, "waybar") or target_theme_dir
+            theme_style = self.find_file_flexible(theme_waybar_dir, "style.css")
 
+            if layout_config and layout_config.exists():
+                shutil.copy(layout_config, WAYBAR_SYS_DIR / "config")
+            else:
+                print(f"Warning: Structural Waybar config missing from layout: {target_layout_dir.name}")
+
+            if theme_style and theme_style.exists():
+                shutil.copy(theme_style, WAYBAR_SYS_DIR / "style.css")
+                theme_colours = self.find_file_flexible(target_theme_dir, "colours.css")
+                if theme_colours and theme_colours.exists():
+                    shutil.copy(theme_colours, WAYBAR_SYS_DIR / "colours.css")
+            else:
+                print(f"Warning: Aesthetic Waybar style.css missing from theme: {target_theme_dir.name}")
+
+            # 6. Decoupled Wofi Routing (Structure + Style Blend)
+            if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
+            WOFI_SYS_DIR.mkdir(parents=True, exist_ok=True)
+
+            # Structure comes from LAYOUT folder
+            layout_wofi_dir = self.find_dir_flexible(target_layout_dir, "wofi") or target_layout_dir
+            layout_wofi_config = self.find_file_flexible(layout_wofi_dir, "config")
+
+            # Aesthetics come from THEME folder
+            theme_wofi_dir = self.find_dir_flexible(target_theme_dir, "wofi") or target_theme_dir
+            theme_wofi_style = self.find_file_flexible(theme_wofi_dir, "style.css")
+
+            if layout_wofi_config and layout_wofi_config.exists():
+                shutil.copy(layout_wofi_config, WOFI_SYS_DIR / "config")
+            else:
+                print(f"Warning: Structural Wofi config missing from layout: {target_layout_dir.name}")
+
+            if theme_wofi_style and theme_wofi_style.exists():
+                shutil.copy(theme_wofi_style, WOFI_SYS_DIR / "style.css")
+            else:
+                print(f"Warning: Aesthetic Wofi style.css missing from theme: {target_theme_dir.name}")
+
+            # 6.5 Script Routing & Automated Executable Permissions
             local_scripts = self.find_dir_flexible(target_theme_dir, "scripts") or (target_theme_dir / "scripts")
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             if local_scripts.exists():
                 if sys_scripts_dir.exists(): shutil.rmtree(sys_scripts_dir)
                 shutil.copytree(local_scripts, sys_scripts_dir)
                 
+                # Recursively parse files and apply chmod +x bit masks
                 for script_file in sys_scripts_dir.rglob("*"):
                     if script_file.is_file():
                         script_file.chmod(script_file.stat().st_mode | 0o111)
 
+            # 7. GTK Assignments
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -285,6 +340,7 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
+            # 7.5 Wallpaper Routing
             flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
             if flex_wp and flex_wp.exists():
                 for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
@@ -294,6 +350,7 @@ class FoolishDeployer:
                 sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{flex_wp.suffix}"
                 shutil.copy(flex_wp, sys_wp_dest)
 
+            # 8. Enable Wayland Media Services
             try:
                 print("Enabling PipeWire audio & Wayland streaming services...")
                 subprocess.run(
@@ -302,7 +359,10 @@ class FoolishDeployer:
                 )
             except Exception as se:
                 print(f"Failed to enable media services: {se}")
+
+            # 9. Stitch Structural Master Sway Config
             gtk_injection = f"""
+# --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
 exec_always gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
@@ -316,6 +376,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             )
             sys_main_config.write_text(monolithic_config)
 
+            # 10. Reload Environment Safely
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.show_success_and_exit()
 
@@ -333,6 +394,9 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             messagebox.showerror("Deployment Halted", f"Repository parsing verification failed:\n\n{error_msg}")
         self.root.after(0, callback)
 
+# ------------------------------------------------------------------------------
+# ENTRY POINT
+# ------------------------------------------------------------------------------
 if __name__ == "__main__":
     root = tk.Tk()
     style = ttk.Style(root)
