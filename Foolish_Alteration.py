@@ -184,7 +184,6 @@ class FoolishDeployer:
             sys_sway_vars = SWAY_SYS_DIR / "SwayVariables.conf"
             sys_layout_file = SWAY_SYS_DIR / "Foolish_Layout.conf"
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
-            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
             # 1. Process Variables File (Aesthetics)
@@ -342,9 +341,29 @@ class FoolishDeployer:
                 theme_to_set = "Adwaita-dark"
 
             # 7.5 Automated Wallpaper Media Engine Routing & Configuration Injection
+            sys_scripts_dir = SWAY_SYS_DIR / "scripts"
+            sys_scripts_dir.mkdir(parents=True, exist_ok=True)
+            launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
+            
+            # Robust shell engine wrapper script to fully isolate from window manager token splitting bugs
+            script_content = """#!/bin/bash
+pkill mpvpaper
+killall swaybg
+sleep 0.1
+if [[ "$1" =~ \\.(mp4|mkv|webm)$ ]]; then
+    mpvpaper -o 'loop no-audio' '*' "$1"
+elif [ -f "$1" ]; then
+    swaybg -i "$1" -m fill
+else
+    swaybg -c '#141111'
+fi
+"""
+            launcher_script.write_text(script_content)
+            launcher_script.chmod(launcher_script.stat().st_mode | 0o111)
+
+            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
             flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
             
-            # Housekeeping: Wipe out old wallpaper targets
             for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
                 try: old_wp.unlink()
                 except: pass
@@ -353,18 +372,13 @@ class FoolishDeployer:
                 detected_ext = flex_wp.suffix.lower()
                 sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{detected_ext}"
                 shutil.copy(flex_wp, sys_wp_dest)
-                
-                # Convert path to Absolute path to ensure Sway environment understands it perfectly
                 abs_wp_path = sys_wp_dest.resolve()
                 
-                if detected_ext in ['.mp4', '.mkv', '.webm']:
-                    sway_command = f"exec_always killall swaybg; exec_always \"pkill mpvpaper; mpvpaper -o 'loop no-audio' '*' '{abs_wp_path}'\"\n"
-                else:
-                    sway_command = f"exec_always pkill mpvpaper; exec_always killall swaybg; exec_always swaybg -i '{abs_wp_path}' -m fill\n"
-                    
-                sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
+                sway_command = f"exec_always {launcher_script.resolve()} '{abs_wp_path}'\n"
             else:
-                sys_wp_conf.write_text("# Generated automatically by Foolish Installer\nexec_always killall swaybg; exec_always swaybg -c '#141111'\n")
+                sway_command = f"exec_always {launcher_script.resolve()} ''\n"
+                
+            sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
 
             # 8. Enable Wayland Media Services
             try:
@@ -389,7 +403,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
                 "include ~/.config/sway/Foolish_Keybinds.conf\n"
                 "include ~/.config/sway/wallpaper.conf\n"
                 f"{gtk_injection}\n"
-                "exec_always \"killall waybar; sleep 1; waybar\"\n"
+                "exec_always bash -c \"killall waybar; sleep 1; waybar\"\n"
             )
             sys_main_config.write_text(monolithic_config)
 
