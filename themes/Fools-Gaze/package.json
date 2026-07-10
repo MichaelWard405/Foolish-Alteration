@@ -1,11 +1,12 @@
 {
-  "packages":[
+  "packages": [
     "lxappearance",
-    "papirus-icon-theme"
+    "papirus-icon-theme",
+    "ttf-bigblueterminal-nerd"
   ],
   "flatpak": [],
   "commands": [
     "gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark'",
-    "gsettings set org.gnome.desktop.interface font-name 'Cozette 10'"
+    "gsettings set org.gnome.desktop.interface font-name 'BigBlueTerm437 Nerd Font 10'"
   ]
 }
