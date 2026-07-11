@@ -1,0 +1,11 @@
+{
+  "Flatpak": [
+    "dev.deedles.Trayscale"
+  ],
+  "Packages": [
+    "tailscale"
+  ],
+  "Commands": [
+    "sudo systemctl enable --now tailscaled",
+  ]
+}
