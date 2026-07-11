@@ -1,13 +1,11 @@
 {
   "Flatpak": [
     "com.moonlight_stream.Moonlight",
-    "dev.lizardbyte.app.Sunshine"
   ],
   "Packages": [
-
+    "sunshine-bin"
   ],
   "Commands": [
-    "flatpak run --command=additional-install.sh dev.lizardbyte.app.Sunshine",
-    "systemctl --user enable --now app-dev.lizardbyte.app.Sunshine.service"
+
   ]
 }
