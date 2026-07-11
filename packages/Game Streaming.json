@@ -1,6 +1,6 @@
 {
   "Flatpak": [
-    "com.moonlight_stream.Moonlight",
+    "com.moonlight_stream.Moonlight"
   ],
   "Packages": [
     "sunshine-bin"

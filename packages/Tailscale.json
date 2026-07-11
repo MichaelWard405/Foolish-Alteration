@@ -6,6 +6,6 @@
     "tailscale"
   ],
   "Commands": [
-    "sudo systemctl enable --now tailscaled",
+    "sudo systemctl enable --now tailscaled"
   ]
 }
