@@ -1,7 +1,6 @@
-# ==============================================================================
-# FOOLISH-ALTERATION: MONOLITHIC BUILDER (DECOUPLED LAYOUT & THEME ENGINE)
-# ==============================================================================
-
+# ========================================
+#  FOOLISH-ALTERATION: MONOLITHIC BUILDER
+# ========================================
 import os
 import json
 import shutil
@@ -10,9 +9,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from pathlib import Path
 
-# ------------------------------------------------------------------------------
-# 1. DEFINE ALL MASTER PATHS
-# ------------------------------------------------------------------------------
+#=============================
+# DEFINE ALL MASTER PATHS [1]
+#=============================
 HOME_DIR = Path.home()
 
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
@@ -29,9 +28,9 @@ LOCAL_PACKAGES_DIR = MASTER_LOCAL_DIR / "Packages"
 GITHUB_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 
-# ------------------------------------------------------------------------------
-# 2. MAIN APPLICATION CLASS
-# ------------------------------------------------------------------------------
+#================
+# MAIN CLASS [2]
+#================
 class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
@@ -173,9 +172,9 @@ class FoolishDeployer:
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
-    # --------------------------------------------------------------------------
-    # CORE DEPLOYMENT PIPELINE
-    # --------------------------------------------------------------------------
+#==============================
+# CORE DEPLOYMENT PIPELINE [3]
+#==============================
     def execute_deployment(self):
         try:
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
@@ -186,13 +185,11 @@ class FoolishDeployer:
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
-            # 1. Process Variables File (Aesthetics)
             var_src = self.find_file_flexible(target_theme_dir, "variables")
             if not var_src:
                 raise FileNotFoundError(f"Could not find a 'variables' config file under theme: {target_theme_dir.name}")
             shutil.copy(var_src, sys_sway_vars)
 
-            # 2. Process Keybinds File
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.[cC][oO][nN][fF]"))
@@ -206,13 +203,11 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
-            # 3. Process Layout File (Structure)
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
-            # 4. Process Packages Logic
             packages_to_install = set()
             flatpaks_to_install = set()
             custom_commands = []
@@ -269,15 +264,12 @@ class FoolishDeployer:
                     except Exception as ce:
                         print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
-            # 5. Decoupled Waybar Routing (Structure + Style Blend)
             if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
             WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
-            # Structure comes from LAYOUT folder
             layout_waybar_dir = self.find_dir_flexible(target_layout_dir, "waybar") or target_layout_dir
             layout_config = self.find_file_flexible(layout_waybar_dir, "config")
             
-            # Aesthetics come from THEME folder
             theme_waybar_dir = self.find_dir_flexible(target_theme_dir, "waybar") or target_theme_dir
             theme_style = self.find_file_flexible(theme_waybar_dir, "style.css")
 
@@ -294,15 +286,12 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Waybar style.css missing from theme: {target_theme_dir.name}")
 
-            # 6. Decoupled Wofi Routing (Structure + Style Blend)
             if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
             WOFI_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
-            # Structure comes from LAYOUT folder
             layout_wofi_dir = self.find_dir_flexible(target_layout_dir, "wofi") or target_layout_dir
             layout_wofi_config = self.find_file_flexible(layout_wofi_dir, "config")
 
-            # Aesthetics come from THEME folder
             theme_wofi_dir = self.find_dir_flexible(target_theme_dir, "wofi") or target_theme_dir
             theme_wofi_style = self.find_file_flexible(theme_wofi_dir, "style.css")
 
@@ -316,19 +305,16 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Wofi style.css missing from theme: {target_theme_dir.name}")
 
-            # 6.5 Script Routing & Automated Executable Permissions
             local_scripts = self.find_dir_flexible(target_theme_dir, "scripts") or (target_theme_dir / "scripts")
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             if local_scripts.exists():
                 if sys_scripts_dir.exists(): shutil.rmtree(sys_scripts_dir)
                 shutil.copytree(local_scripts, sys_scripts_dir)
                 
-                # Recursively parse files and apply chmod +x bit masks
                 for script_file in sys_scripts_dir.rglob("*"):
                     if script_file.is_file():
                         script_file.chmod(script_file.stat().st_mode | 0o111)
 
-            # 7. GTK Assignments
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -340,12 +326,10 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
-            # 7.5 Automated Wallpaper Media Engine Routing & Configuration Injection
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             sys_scripts_dir.mkdir(parents=True, exist_ok=True)
             launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
             
-            # Robust shell engine wrapper script to fully isolate from window manager token splitting bugs
             script_content = """#!/bin/bash
 pkill mpvpaper
 killall swaybg
@@ -380,7 +364,6 @@ fi
                 
             sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
 
-            # 8. Enable Wayland Media Services
             try:
                 print("Enabling PipeWire audio & Wayland streaming services...")
                 subprocess.run(
@@ -390,7 +373,6 @@ fi
             except Exception as se:
                 print(f"Failed to enable media services: {se}")
 
-            # 9. Stitch Structural Master Sway Config
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
@@ -407,7 +389,6 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             )
             sys_main_config.write_text(monolithic_config)
 
-            # 10. Reload Environment Safely
             subprocess.run(["swaymsg", "reload"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             self.show_success_and_exit()
 
@@ -425,9 +406,9 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             messagebox.showerror("Deployment Halted", f"Repository parsing verification failed:\n\n{error_msg}")
         self.root.after(0, callback)
 
-# ------------------------------------------------------------------------------
-# ENTRY POINT
-# ------------------------------------------------------------------------------
+#=================
+# ENTRY POINT [4]
+#=================
 if __name__ == "__main__":
     root = tk.Tk()
     style = ttk.Style(root)
