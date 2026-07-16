@@ -328,7 +328,13 @@ class FoolishDeployer:
             WLOGOUT_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
             layout_wlogout_dir = self.find_dir_flexible(target_layout_dir, "wlogout") or target_layout_dir
-            wlogout_layout = self.find_file_flexible(layout_wlogout_dir, "layout")
+            wlogout_layout = self.find_file_flexible(layout_wlogout_dir, "layout") or self.find_file_flexible(layout_wlogout_dir, "config")
+            
+            if not wlogout_layout and layout_wlogout_dir.exists():
+                for f in layout_wlogout_dir.iterdir():
+                    if f.is_file() and f.suffix in ['.json', ''] and not f.name.startswith('.'):
+                        wlogout_layout = f
+                        break
 
             theme_wlogout_dir = self.find_dir_flexible(target_theme_dir, "wlogout") or target_theme_dir
             wlogout_style = self.find_file_flexible(theme_wlogout_dir, "style.css")
