@@ -1,6 +1,9 @@
-# ========================================
-#  FOOLISH-ALTERATION: MONOLITHIC BUILDER
-# ========================================
+#!/usr/bin/env python3
+
+#=======================
+# Dependencies [1]
+#=======================
+#[IMPORTS] [A]
 import os
 import json
 import shutil
@@ -9,28 +12,31 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from pathlib import Path
 
-#=============================
-# DEFINE ALL MASTER PATHS [1]
-#=============================
+#=======================
+# Master Paths [2]
+#=======================
+#[SYSTEM DIRECTORIES] [A]
 HOME_DIR = Path.home()
-
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
 WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
 WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
 THEMES_SYS_DIR = HOME_DIR / ".themes" 
 
+#[LOCAL WAREHOUSE] [B]
 MASTER_LOCAL_DIR = HOME_DIR / ".local/share/Foolish-Alteration"
 LOCAL_THEMES_DIR = MASTER_LOCAL_DIR / "Themes"
 LOCAL_LAYOUTS_DIR = MASTER_LOCAL_DIR / "Layouts"
 LOCAL_KEYBINDS_DIR = MASTER_LOCAL_DIR / "Keybinds"
 LOCAL_PACKAGES_DIR = MASTER_LOCAL_DIR / "Packages" 
 
+#[GITHUB PARAMETERS] [C]
 GITHUB_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 
-#================
-# MAIN CLASS [2]
-#================
+#=======================
+# Main Application [3]
+#=======================
+#[CLASS INITIALIZATION] [A]
 class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
@@ -52,6 +58,7 @@ class FoolishDeployer:
 
         self.build_ui()
 
+#[FLEXIBLE PATH HELPERS] [B]
     def find_dir_flexible(self, parent_dir: Path, keyword: str) -> Path or None:
         if not parent_dir.exists(): return None
         for item in parent_dir.iterdir():
@@ -75,6 +82,7 @@ class FoolishDeployer:
                 return item
         return None
 
+#[DIRECTORY & LIST HELPERS] [C]
     def create_local_directories(self):
         dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR]
         for directory in dirs:
@@ -98,6 +106,7 @@ class FoolishDeployer:
     def get_default(self, item_list):
         return item_list[0] if item_list else "None"
 
+#[REPOSITORY SYNC] [D]
     def sync_warehouse_to_local(self):
         print("Syncing with GitHub Warehouse...")
         if TMP_GIT_DIR.exists():
@@ -126,6 +135,7 @@ class FoolishDeployer:
             if TMP_GIT_DIR.exists():
                 shutil.rmtree(TMP_GIT_DIR)
 
+#[USER INTERFACE BUILDER] [E]
     def build_ui(self):
         main_frame = ttk.Frame(self.root, padding=20)
         main_frame.pack(fill='both', expand=True)
@@ -172,11 +182,12 @@ class FoolishDeployer:
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
-#==============================
-# CORE DEPLOYMENT PIPELINE [3]
-#==============================
+#=======================
+# Core Deployment [4]
+#=======================
     def execute_deployment(self):
         try:
+#[DEPLOYMENT TARGETS] [A]
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
             target_layout_dir = LOCAL_LAYOUTS_DIR / self.selected_layout.get()
             
@@ -185,11 +196,13 @@ class FoolishDeployer:
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
+#[SWAY VARIABLES] [B]
             var_src = self.find_file_flexible(target_theme_dir, "variables")
             if not var_src:
                 raise FileNotFoundError(f"Could not find a 'variables' config file under theme: {target_theme_dir.name}")
             shutil.copy(var_src, sys_sway_vars)
 
+#[KEYBINDS PROVISIONING] [C]
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.[cC][oO][nN][fF]"))
@@ -203,11 +216,13 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
+#[LAYOUT PROVISIONING] [D]
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
+#[PACKAGE DEPENDENCY RESOLUTION] [E]
             packages_to_install = set()
             flatpaks_to_install = set()
             custom_commands = []
@@ -264,6 +279,7 @@ class FoolishDeployer:
                     except Exception as ce:
                         print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
+#[WAYBAR DECOUPLED ROUTING] [F]
             if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
             WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -286,6 +302,7 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Waybar style.css missing from theme: {target_theme_dir.name}")
 
+#[WOFI DECOUPLED ROUTING] [G]
             if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
             WOFI_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -305,6 +322,28 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Wofi style.css missing from theme: {target_theme_dir.name}")
 
+#[WLOGOUT DECOUPLED ROUTING] [H]
+            WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
+            if WLOGOUT_SYS_DIR.exists(): shutil.rmtree(WLOGOUT_SYS_DIR)
+            WLOGOUT_SYS_DIR.mkdir(parents=True, exist_ok=True)
+
+            layout_wlogout_dir = self.find_dir_flexible(target_layout_dir, "wlogout") or target_layout_dir
+            wlogout_layout = self.find_file_flexible(layout_wlogout_dir, "layout")
+
+            theme_wlogout_dir = self.find_dir_flexible(target_theme_dir, "wlogout") or target_theme_dir
+            wlogout_style = self.find_file_flexible(theme_wlogout_dir, "style.css")
+
+            if wlogout_layout and wlogout_layout.exists():
+                shutil.copy(wlogout_layout, WLOGOUT_SYS_DIR / "layout")
+            else:
+                print(f"Warning: Structural Wlogout layout missing from layout: {target_layout_dir.name}")
+
+            if wlogout_style and wlogout_style.exists():
+                shutil.copy(wlogout_style, WLOGOUT_SYS_DIR / "style.css")
+            else:
+                print(f"Warning: Aesthetic Wlogout style.css missing from theme: {target_theme_dir.name}")
+
+#[CUSTOM SCRIPTS SYNC] [I]
             local_scripts = self.find_dir_flexible(target_theme_dir, "scripts") or (target_theme_dir / "scripts")
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             if local_scripts.exists():
@@ -315,6 +354,7 @@ class FoolishDeployer:
                     if script_file.is_file():
                         script_file.chmod(script_file.stat().st_mode | 0o111)
 
+#[GTK THEME PROVISIONING] [J]
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -326,6 +366,7 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
+#[DYNAMIC WALLPAPER SCRIPTING] [K]
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             sys_scripts_dir.mkdir(parents=True, exist_ok=True)
             launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
@@ -364,6 +405,7 @@ fi
                 
             sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
 
+#[MEDIA SERVICES ENABLING] [L]
             try:
                 print("Enabling PipeWire audio & Wayland streaming services...")
                 subprocess.run(
@@ -373,6 +415,7 @@ fi
             except Exception as se:
                 print(f"Failed to enable media services: {se}")
 
+#[GTK INJECTION & FINAL RELOAD] [M]
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
@@ -395,6 +438,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
         except Exception as e:
             self.show_error_and_exit(str(e))
 
+#[DIALOG WINDOWS] [N]
     def show_success_and_exit(self):
         def callback():
             messagebox.showinfo("Success", "System synchronized and deployed successfully!")
@@ -406,9 +450,10 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
             messagebox.showerror("Deployment Halted", f"Repository parsing verification failed:\n\n{error_msg}")
         self.root.after(0, callback)
 
-#=================
-# ENTRY POINT [4]
-#=================
+#=======================
+# Entry Point [5]
+#=======================
+#[EXECUTION] [A]
 if __name__ == "__main__":
     root = tk.Tk()
     style = ttk.Style(root)
