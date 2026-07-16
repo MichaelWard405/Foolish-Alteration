@@ -1,34 +1,35 @@
-*{
-  background-image: none;
-  box-shadow: none;
-  font-family: "BigBlueTerm437 Nerd Font"
-  font-size: 18px;
+* {
+    font-family: "BigBlueTerm437 Nerd Font", monospace;
+    font-size: 18px;
 }
 
 window {
-  background-color: rgba(20, 17, 17, 0.75);
+    background-color: rgba(20, 17, 17, 0.75); 
 }
 
 grid {
-  background-color: #141111;
-  border: 2px solid #ff6b6b;
-  margin: 250px 350px;
-  padding: 20px;
+    background-color: #141111;
+    border: 2px solid #ff6b6b;
+    margin: 250px 350px; 
+    padding: 20px;
 }
 
-button {
-  color: #f4eaea;
-  background-color: transparent;
-  border: none;
-  text-align: left;
-  padding: 10px 15px;
-  margin: 2px 0px;
-  transition: none;
+#lock, #logout, #suspend, #reboot, #shutdown {
+    background-image: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
 }
 
-button:hover, button:focus {
-  background-color: #ff6b6b;
-  color: #141111;
-  outline: none;
-  border: none;
+button, button * {
+    color: #f4eaea !important;
+    text-align: left;
+    padding: 5px 10px;
+    transition: none;
+}
+
+button:hover, button:hover *, button:focus, button:focus * {
+    background-color: #ff6b6b !important;
+    color: #141111 !important;
+    font-weight: bold;
 }
