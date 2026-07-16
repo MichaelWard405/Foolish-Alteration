@@ -411,7 +411,39 @@ fi
                 
             sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
 
-#[MEDIA SERVICES ENABLING] [L]
+#[KITTY DECOUPLED ROUTING] [L]
+            KITTY_SYS_DIR = HOME_DIR / ".config/kitty"
+            if KITTY_SYS_DIR.exists(): shutil.rmtree(KITTY_SYS_DIR)
+            KITTY_SYS_DIR.mkdir(parents=True, exist_ok=True)
+
+            theme_kitty_dir = self.find_dir_flexible(target_theme_dir, "kitty") or target_theme_dir
+            kitty_conf = self.find_file_flexible(theme_kitty_dir, "kitty")
+
+            if kitty_conf and kitty_conf.exists():
+                shutil.copy(kitty_conf, KITTY_SYS_DIR / "kitty.conf")
+            else:
+                print(f"Warning: Aesthetic Kitty kitty.conf missing from theme: {target_theme_dir.name}")
+
+#[FASTFETCH DECOUPLED ROUTING] [M]
+            FASTFETCH_SYS_DIR = HOME_DIR / ".config/fastfetch"
+            if FASTFETCH_SYS_DIR.exists(): shutil.rmtree(FASTFETCH_SYS_DIR)
+            FASTFETCH_SYS_DIR.mkdir(parents=True, exist_ok=True)
+
+            theme_fastfetch_dir = self.find_dir_flexible(target_theme_dir, "fastfetch") or target_theme_dir
+            fastfetch_conf = self.find_file_flexible(theme_fastfetch_dir, "config")
+            
+            if not fastfetch_conf and theme_fastfetch_dir.exists():
+                for f in theme_fastfetch_dir.iterdir():
+                    if f.is_file() and f.suffix in ['.jsonc', '.json'] and 'config' in f.name.lower():
+                        fastfetch_conf = f
+                        break
+
+            if fastfetch_conf and fastfetch_conf.exists():
+                shutil.copy(fastfetch_conf, FASTFETCH_SYS_DIR / "config.jsonc")
+            else:
+                print(f"Warning: Aesthetic Fastfetch config.jsonc missing from theme: {target_theme_dir.name}")
+
+#[MEDIA SERVICES ENABLING] [N]
             try:
                 print("Enabling PipeWire audio & Wayland streaming services...")
                 subprocess.run(
@@ -421,7 +453,7 @@ fi
             except Exception as se:
                 print(f"Failed to enable media services: {se}")
 
-#[GTK INJECTION & FINAL RELOAD] [M]
+#[GTK INJECTION & FINAL RELOAD] [O]
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
@@ -444,7 +476,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
         except Exception as e:
             self.show_error_and_exit(str(e))
 
-#[DIALOG WINDOWS] [N]
+#[DIALOG WINDOWS] [P]
     def show_success_and_exit(self):
         def callback():
             messagebox.showinfo("Success", "System synchronized and deployed successfully!")
