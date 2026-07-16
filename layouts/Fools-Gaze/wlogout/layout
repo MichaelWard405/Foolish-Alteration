@@ -1,13 +1,13 @@
 {
     "label" : "lock",
-    "action" : "swaylock",
-    "text" : "root@fools-gaze:~# ./lock_session.sh  [l]",
+    "action" : "bash ~/.config/wlogout/lock_session.sh",
+    "text" : "root@fools-gaze:~# ./lock_session.sh [l]",
     "keybind" : "l"
 }
 {
     "label" : "logout",
     "action" : "swaymsg exit",
-    "text" : "root@fools-gaze:~# killall sway      [e]",
+    "text" : "root@fools-gaze:~# killall sway [e]",
     "keybind" : "e"
 }
 {
@@ -19,12 +19,12 @@
 {
     "label" : "reboot",
     "action" : "systemctl reboot",
-    "text" : "root@fools-gaze:~# reboot --now      [r]",
+    "text" : "root@fools-gaze:~# reboot --now [r]",
     "keybind" : "r"
 }
 {
     "label" : "shutdown",
     "action" : "systemctl poweroff",
-    "text" : "root@fools-gaze:~# shutdown -h now   [s]",
+    "text" : "root@fools-gaze:~# shutdown -h now [s]",
     "keybind" : "s"
 }
