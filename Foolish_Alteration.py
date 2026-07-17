@@ -21,6 +21,7 @@ SWAY_SYS_DIR = HOME_DIR / ".config/sway"
 WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
 WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
 THEMES_SYS_DIR = HOME_DIR / ".themes" 
+ICONS_SYS_DIR = HOME_DIR / ".local/share/icons"
 
 #[LOCAL WAREHOUSE] [B]
 MASTER_LOCAL_DIR = HOME_DIR / ".local/share/Foolish-Alteration"
@@ -84,7 +85,7 @@ class FoolishDeployer:
 
 #[DIRECTORY & LIST HELPERS] [C]
     def create_local_directories(self):
-        dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR]
+        dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR, ICONS_SYS_DIR]
         for directory in dirs:
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -365,12 +366,51 @@ class FoolishDeployer:
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
             
-            if gtk_src.exists():
+            if gtk_src and gtk_src.exists():
                 if sys_theme_dest.exists(): shutil.rmtree(sys_theme_dest)
                 shutil.copytree(gtk_src, sys_theme_dest)
                 theme_to_set = custom_gtk_name
             else:
                 theme_to_set = "Adwaita-dark"
+
+#[ICON THEME PROVISIONING] [J2]
+            icon_src = self.find_dir_flexible(target_theme_dir, "icons") or self.find_dir_flexible(target_theme_dir, "icon-theme")
+            custom_icon_name = f"Foolish-Icons-{self.selected_theme.get()}"
+            sys_icon_dest = ICONS_SYS_DIR / custom_icon_name
+            
+            if icon_src and icon_src.exists():
+                if sys_icon_dest.exists(): shutil.rmtree(sys_icon_dest)
+                shutil.copytree(icon_src, sys_icon_dest)
+                icon_to_set = custom_icon_name
+            else:
+                icon_to_set = "Adwaita"
+
+#[CURSOR THEME PROVISIONING] [J3]
+            cursor_src = self.find_dir_flexible(target_theme_dir, "cursor") or self.find_dir_flexible(target_theme_dir, "cursor-theme")
+            custom_cursor_name = f"Foolish-Cursor-{self.selected_theme.get()}"
+            sys_cursor_dest = ICONS_SYS_DIR / custom_cursor_name
+            
+            if cursor_src and cursor_src.exists():
+                if sys_cursor_dest.exists(): shutil.rmtree(sys_cursor_dest)
+                shutil.copytree(cursor_src, sys_cursor_dest)
+                cursor_to_set = custom_cursor_name
+            else:
+                cursor_to_set = "Adwaita"
+
+#[GTK CONFIGURATION SYNC] [J4]
+            gtk3_dir = HOME_DIR / ".config/gtk-3.0"
+            gtk4_dir = HOME_DIR / ".config/gtk-4.0"
+            gtk3_dir.mkdir(parents=True, exist_ok=True)
+            gtk4_dir.mkdir(parents=True, exist_ok=True)
+
+            gtk_settings_content = f"""[Settings]
+gtk-theme-name={theme_to_set}
+gtk-icon-theme-name={icon_to_set}
+gtk-cursor-theme-name={cursor_to_set}
+gtk-application-prefer-dark-theme=1
+"""
+            (gtk3_dir / "settings.ini").write_text(gtk_settings_content)
+            (gtk4_dir / "settings.ini").write_text(gtk_settings_content)
 
 #[DYNAMIC WALLPAPER SCRIPTING] [K]
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
@@ -484,8 +524,15 @@ fi
 #[GTK INJECTION & FINAL RELOAD] [P]
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
-exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
-exec_always gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+set $gnome-schema org.gnome.desktop.interface
+exec_always gsettings set $gnome-schema gtk-theme '{theme_to_set}'
+exec_always gsettings set $gnome-schema icon-theme '{icon_to_set}'
+exec_always gsettings set $gnome-schema cursor-theme '{cursor_to_set}'
+exec_always gsettings set $gnome-schema color-scheme 'prefer-dark'
+
+# Native Wayland Cursor Provisioning
+seat seat0 xcursor_theme '{cursor_to_set}' 24
+
 exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway
 """
             monolithic_config = (
