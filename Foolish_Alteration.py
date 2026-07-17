@@ -443,17 +443,39 @@ fi
             else:
                 print(f"Warning: Aesthetic Fastfetch config.jsonc missing from theme: {target_theme_dir.name}")
 
-#[MEDIA SERVICES ENABLING] [N]
-            try:
-                print("Enabling PipeWire audio & Wayland streaming services...")
-                subprocess.run(
-                    ["systemctl", "--user", "enable", "--now", "pipewire", "pipewire-pulse", "wireplumber"],
-                    check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-            except Exception as se:
-                print(f"Failed to enable media services: {se}")
+#[VESKTOP DECOUPLED ROUTING] [N]
+            VESKTOP_SYS_DIR = HOME_DIR / ".config/vesktop/themes"
+            if VESKTOP_SYS_DIR.exists(): shutil.rmtree(VESKTOP_SYS_DIR)
+            VESKTOP_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
-#[GTK INJECTION & FINAL RELOAD] [O]
+            theme_vesktop_dir = self.find_dir_flexible(target_theme_dir, "vesktop") or target_theme_dir
+            vesktop_theme = None
+            
+            if theme_vesktop_dir and theme_vesktop_dir.exists():
+                for f in theme_vesktop_dir.iterdir():
+                    if f.is_file() and f.name.endswith('.theme.css'):
+                        vesktop_theme = f
+                        break
+
+            if vesktop_theme and vesktop_theme.exists():
+                shutil.copy(vesktop_theme, VESKTOP_SYS_DIR / "fools-gaze.theme.css")
+            else:
+                print(f"Warning: Aesthetic Vesktop .theme.css missing from theme: {target_theme_dir.name}")
+
+#[MEDIA SERVICES ENABLING] [O]
+            print("Enabling PipeWire audio & Wayland streaming services...")
+            # Swapped bundled check=True call for explicit non-crashing granular iterations
+            services_to_sync = ["pipewire", "pipewire-pulse", "wireplumber"]
+            for service in services_to_sync:
+                try:
+                    subprocess.run(
+                        ["systemctl", "--user", "enable", "--now", service],
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False
+                    )
+                except Exception as service_err:
+                    print(f"Audio service provision skip on {service}: {service_err}")
+
+#[GTK INJECTION & FINAL RELOAD] [P]
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 exec_always gsettings set org.gnome.desktop.interface gtk-theme '{theme_to_set}'
@@ -476,7 +498,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
         except Exception as e:
             self.show_error_and_exit(str(e))
 
-#[DIALOG WINDOWS] [P]
+#[DIALOG WINDOWS] [Q]
     def show_success_and_exit(self):
         def callback():
             messagebox.showinfo("Success", "System synchronized and deployed successfully!")
