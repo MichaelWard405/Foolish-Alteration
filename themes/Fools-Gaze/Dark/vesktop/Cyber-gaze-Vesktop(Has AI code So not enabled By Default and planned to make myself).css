@@ -1,0 +1,44 @@
+@import url("https://refact0r.github.io/system24/src/main.css");
+
+:root {
+    /*[TYPOGRAPHY]*/
+    --font: "BigBlueTerm437 Nerd Font", monospace;
+
+    /*[FOOLS GAZE BACKGROUNDS]*/
+    --bg-00: #0c0a0a;
+    --bg-01: #100d0d;
+    --bg-02: #141111;
+    --bg-03: #ff6b6b;
+
+    /*[HOVER & ACTIVE STATES]*/
+    --hover: rgba(255, 107, 107, 0.15);
+    --active: rgba(255, 107, 107, 0.30);
+    --selected: var(--active);
+
+    /*[TEXT COLORS]*/
+    --txt-dark:  #100d0d;
+    --txt-link:  #ff6b6b;
+    --txt-00:    #ffffff;
+    --txt-01:    #f4eaea;
+    --txt-02:    #bac2de;
+    --txt-03:    #45475a;
+
+    /*[PRIMARY ACCENTS]*/
+    --acc-00: #ff6b6b; 
+    --acc-01: #ff8f8f;
+    --acc-02: #ff6b6b;
+
+    /*[BORDERS & TERMINAL AESTHETICS]*/
+    --border-width: 2px;
+    --border-color: #ff6b6b;
+    --border-hover: #ffffff;
+    --border-transition: 0.2s ease-in-out;
+
+    /*[SHAPES]*/
+    --radius-box:  0px;
+    --radius-btn:  0px;
+    --radius-icon: 0px;
+}
+/* I do plan to do a rework of the entire System24 theme this is overriding the colours because while i do 
+ * love the theme it is heavily AI generated and there are a few changes i would like to make
+ * this is also not enabled by default because of the prior stated use if Ai 
