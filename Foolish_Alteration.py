@@ -381,7 +381,7 @@ class FoolishDeployer:
 pkill mpvpaper
 killall swaybg
 sleep 0.1
-if [[ "$1" =~ \\.(mp4|mkv|webm)$ ]]; then
+if [[ "$1" =~ \.(mp4|mkv|webm)$ ]]; then
     mpvpaper -o 'loop no-audio' '*' "$1"
 elif [ -f "$1" ]; then
     swaybg -i "$1" -m fill
@@ -444,9 +444,13 @@ fi
                 print(f"Warning: Aesthetic Fastfetch config.jsonc missing from theme: {target_theme_dir.name}")
 
 #[VESKTOP DECOUPLED ROUTING] [N]
-            VESKTOP_SYS_DIR = HOME_DIR / ".config/vesktop/themes"
-            if VESKTOP_SYS_DIR.exists(): shutil.rmtree(VESKTOP_SYS_DIR)
-            VESKTOP_SYS_DIR.mkdir(parents=True, exist_ok=True)
+            VESKTOP_NATIVE_DIR = HOME_DIR / ".config/vesktop/themes"
+            VESKTOP_FLATPAK_DIR = HOME_DIR / ".var/app/dev.vencord.Vesktop/config/vesktop/themes"
+            
+            # Wipe and recreate both directories to ensure a clean slate
+            for v_dir in [VESKTOP_NATIVE_DIR, VESKTOP_FLATPAK_DIR]:
+                if v_dir.exists(): shutil.rmtree(v_dir)
+                v_dir.mkdir(parents=True, exist_ok=True)
 
             theme_vesktop_dir = self.find_dir_flexible(target_theme_dir, "vesktop") or target_theme_dir
             vesktop_theme = None
@@ -458,7 +462,9 @@ fi
                         break
 
             if vesktop_theme and vesktop_theme.exists():
-                shutil.copy(vesktop_theme, VESKTOP_SYS_DIR / "fools-gaze.theme.css")
+                # Deploy to both Native and Flatpak paths
+                shutil.copy(vesktop_theme, VESKTOP_NATIVE_DIR / "fools-gaze.theme.css")
+                shutil.copy(vesktop_theme, VESKTOP_FLATPAK_DIR / "fools-gaze.theme.css")
             else:
                 print(f"Warning: Aesthetic Vesktop .theme.css missing from theme: {target_theme_dir.name}")
 
