@@ -1,8 +1,28 @@
+* {
+    font-family: "BigBlueTerm437 Nerd Font Mono", "BigBlueTerm437", monospace;
+}
+
 @define-color window_bg_color #100d0d;
 @define-color window_fg_color #bac2de;
 
 @define-color view_bg_color #141111;
-@define-color view_fg_color #f4eaea;
+@define-color view_fg_color #ffffff;
+
+NemoWindow .view,
+NemoWindow iconview,
+NemoWindow treeview,
+.nemo-window .places-treeview,
+GtkTreeView {
+    background-color: #141111;
+    background-image: none;
+    color: #ffffff;
+}
+
+window.nemo-window,
+.nemo-window .sidebar {
+    background-color: #0c0a0a;
+    background-image: none;
+}
 
 @define-color accent_color #ff6b6b;
 @define-color accent_bg_color #ff6b6b;
