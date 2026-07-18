@@ -5,9 +5,9 @@
   ],
   "Commands": [
     "sudo sed -i '/^HOOKS=/ s/udev/udev plymouth/' /etc/mkinitcpio.conf",
-    "sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"/GRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash /g' /etc/default/grub",
     "sudo mkinitcpio -P",
-    "sudo grub-mkconfig -o /boot/grub/grub.cfg",
+    "sudo sed -i 's/ quiet splash//g' /boot/refind_linux.conf",
+    "sudo sed -i -E 's/(root=[^ ]*)/\\1 quiet splash/g' /boot/refind_linux.conf",
     "sudo plymouth-set-default-theme -R bgrt"
   ]
 }
