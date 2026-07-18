@@ -1,0 +1,13 @@
+{
+  "Flatpak": [],
+  "Packages": [
+    "plymouth"
+  ],
+  "Commands": [
+    "sudo sed -i '/^HOOKS=/ s/udev/udev plymouth/' /etc/mkinitcpio.conf",
+    "sudo sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"/GRUB_CMDLINE_LINUX_DEFAULT=\"quiet splash /g' /etc/default/grub",
+    "sudo mkinitcpio -P",
+    "sudo grub-mkconfig -o /boot/grub/grub.cfg",
+    "sudo plymouth-set-default-theme -R bgrt"
+  ]
+}
