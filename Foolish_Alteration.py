@@ -20,6 +20,7 @@ HOME_DIR = Path.home()
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
 WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
 WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
+SFWBAR_SYS_DIR = HOME_DIR / ".config/sfwbar"
 THEMES_SYS_DIR = HOME_DIR / ".themes" 
 ICONS_SYS_DIR = HOME_DIR / ".local/share/icons"
 
@@ -28,6 +29,7 @@ MASTER_LOCAL_DIR = HOME_DIR / ".local/share/Foolish-Alteration"
 LOCAL_THEMES_DIR = MASTER_LOCAL_DIR / "Themes"
 LOCAL_LAYOUTS_DIR = MASTER_LOCAL_DIR / "Layouts"
 LOCAL_KEYBINDS_DIR = MASTER_LOCAL_DIR / "Keybinds"
+LOCAL_AUTO_STARTS_DIR = MASTER_LOCAL_DIR / "Auto_Starts"
 LOCAL_PACKAGES_DIR = MASTER_LOCAL_DIR / "Packages" 
 
 #[GITHUB PARAMETERS] [C]
@@ -42,7 +44,7 @@ class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
         self.root.title("Foolish-Alteration | Installer")
-        self.root.geometry("550x680") 
+        self.root.geometry("550x740") 
         self.root.resizable(False, False)
 
         self.create_local_directories()
@@ -51,11 +53,13 @@ class FoolishDeployer:
         self.available_themes = self.get_folders_in_dir(LOCAL_THEMES_DIR)
         self.available_layouts = self.get_folders_in_dir(LOCAL_LAYOUTS_DIR)
         self.available_keybinds = self.get_all_items_in_dir(LOCAL_KEYBINDS_DIR)
+        self.available_auto_starts = self.get_all_items_in_dir(LOCAL_AUTO_STARTS_DIR)
         self.available_packages = self.get_files_in_dir(LOCAL_PACKAGES_DIR) 
 
         self.selected_theme = tk.StringVar(value=self.get_default(self.available_themes))
         self.selected_layout = tk.StringVar(value=self.get_default(self.available_layouts))
         self.selected_keybind = tk.StringVar(value=self.get_default(self.available_keybinds))
+        self.selected_auto_start = tk.StringVar(value=self.get_default(self.available_auto_starts))
 
         self.build_ui()
 
@@ -85,7 +89,7 @@ class FoolishDeployer:
 
 #[DIRECTORY & LIST HELPERS] [C]
     def create_local_directories(self):
-        dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR, ICONS_SYS_DIR]
+        dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_AUTO_STARTS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR, ICONS_SYS_DIR]
         for directory in dirs:
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -120,6 +124,7 @@ class FoolishDeployer:
                 "themes": LOCAL_THEMES_DIR,
                 "layouts": LOCAL_LAYOUTS_DIR,
                 "keybinds": LOCAL_KEYBINDS_DIR,
+                "auto_starts": LOCAL_AUTO_STARTS_DIR,
                 "packages": LOCAL_PACKAGES_DIR
             }
 
@@ -152,7 +157,10 @@ class FoolishDeployer:
         ttk.Label(main_frame, text="3. Select Keybinds:").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_keybind, values=self.available_keybinds, state="readonly", width=45).pack(pady=5)
 
-        ttk.Label(main_frame, text="4. Select Package Modules to Sync:").pack(anchor='w', pady=(15, 0))
+        ttk.Label(main_frame, text="4. Select Auto Starts (Exec Commands):").pack(anchor='w', pady=(5, 0))
+        ttk.Combobox(main_frame, textvariable=self.selected_auto_start, values=self.available_auto_starts, state="readonly", width=45).pack(pady=5)
+
+        ttk.Label(main_frame, text="5. Select Package Modules to Sync:").pack(anchor='w', pady=(15, 0))
         
         pkg_frame = ttk.Frame(main_frame, relief="groove", borderwidth=1)
         pkg_frame.pack(fill='both', expand=True, pady=5)
@@ -195,6 +203,7 @@ class FoolishDeployer:
             sys_sway_vars = SWAY_SYS_DIR / "SwayVariables.conf"
             sys_layout_file = SWAY_SYS_DIR / "Foolish_Layout.conf"
             sys_keybind_file = SWAY_SYS_DIR / "Foolish_Keybinds.conf"
+            sys_auto_start_file = SWAY_SYS_DIR / "Foolish_Auto_Starts.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
 #[SWAY VARIABLES] [B]
@@ -217,13 +226,27 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
-#[LAYOUT PROVISIONING] [D]
+#[AUTO STARTS PROVISIONING] [D]
+            autostart_src = LOCAL_AUTO_STARTS_DIR / self.selected_auto_start.get()
+            if autostart_src.is_dir():
+                confs = list(autostart_src.glob("*.[cC][oO][nN][fF]"))
+                if not confs:
+                    confs = [f for f in autostart_src.iterdir() if f.is_file()]
+                if not confs:
+                    raise FileNotFoundError(f"No configuration files found inside auto starts folder: {autostart_src.name}")
+                shutil.copy(confs[0], sys_auto_start_file)
+            elif autostart_src.is_file():
+                shutil.copy(autostart_src, sys_auto_start_file)
+            else:
+                raise FileNotFoundError(f"Selected Auto Start profile '{autostart_src.name}' is missing entirely.")
+
+#[LAYOUT PROVISIONING] [E]
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
-#[PACKAGE DEPENDENCY RESOLUTION] [E]
+#[PACKAGE DEPENDENCY RESOLUTION] [F]
             packages_to_install = set()
             flatpaks_to_install = set()
             custom_commands = []
@@ -280,7 +303,7 @@ class FoolishDeployer:
                     except Exception as ce:
                         print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
-#[WAYBAR DECOUPLED ROUTING] [F]
+#[WAYBAR DECOUPLED ROUTING] [G]
             if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
             WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -303,7 +326,7 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Waybar style.css missing from theme: {target_theme_dir.name}")
 
-#[WOFI DECOUPLED ROUTING] [G]
+#[WOFI DECOUPLED ROUTING] [H]
             if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
             WOFI_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -323,7 +346,27 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Wofi style.css missing from theme: {target_theme_dir.name}")
 
-#[WLOGOUT DECOUPLED ROUTING] [H]
+#[SFWBAR DECOUPLED ROUTING] [I]
+            if SFWBAR_SYS_DIR.exists(): shutil.rmtree(SFWBAR_SYS_DIR)
+            SFWBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
+
+            layout_sfwbar_dir = self.find_dir_flexible(target_layout_dir, "sfwbar") or target_layout_dir
+            sfwbar_conf = self.find_file_flexible(layout_sfwbar_dir, "sfwbar.config") or self.find_file_flexible(layout_sfwbar_dir, "sfwbar")
+
+            if sfwbar_conf and sfwbar_conf.exists():
+                shutil.copy(sfwbar_conf, SFWBAR_SYS_DIR / "sfwbar.config")
+            else:
+                print(f"Warning: Structural SFWBar config missing from layout: {target_layout_dir.name}")
+
+            theme_sfwbar_dir = self.find_dir_flexible(target_theme_dir, "sfwbar") or target_theme_dir
+            sfwbar_style = self.find_file_flexible(theme_sfwbar_dir, "style.css") or self.find_file_flexible(theme_sfwbar_dir, "sfwbar.css")
+
+            if sfwbar_style and sfwbar_style.exists():
+                shutil.copy(sfwbar_style, SFWBAR_SYS_DIR / "style.css")
+            else:
+                print(f"Warning: Aesthetic SFWBar style.css missing from theme: {target_theme_dir.name}")
+
+#[WLOGOUT DECOUPLED ROUTING] [J]
             WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
             if WLOGOUT_SYS_DIR.exists(): shutil.rmtree(WLOGOUT_SYS_DIR)
             WLOGOUT_SYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -350,7 +393,7 @@ class FoolishDeployer:
             else:
                 print(f"Warning: Aesthetic Wlogout style.css missing from theme: {target_theme_dir.name}")
 
-#[CUSTOM SCRIPTS SYNC] [I]
+#[CUSTOM SCRIPTS SYNC] [K]
             local_scripts = self.find_dir_flexible(target_theme_dir, "scripts") or (target_theme_dir / "scripts")
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             if local_scripts.exists():
@@ -361,7 +404,7 @@ class FoolishDeployer:
                     if script_file.is_file():
                         script_file.chmod(script_file.stat().st_mode | 0o111)
 
-#[GTK THEME PROVISIONING] [J]
+#[GTK THEME PROVISIONING] [L]
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -373,7 +416,7 @@ class FoolishDeployer:
             else:
                 theme_to_set = "Adwaita-dark"
 
-#[ICON THEME PROVISIONING] [J2]
+#[ICON THEME PROVISIONING] [M]
             icon_src = self.find_dir_flexible(target_theme_dir, "icons") or self.find_dir_flexible(target_theme_dir, "icon-theme")
             custom_icon_name = f"Foolish-Icons-{self.selected_theme.get()}"
             sys_icon_dest = ICONS_SYS_DIR / custom_icon_name
@@ -385,7 +428,7 @@ class FoolishDeployer:
             else:
                 icon_to_set = "Adwaita"
 
-#[CURSOR THEME PROVISIONING] [J3]
+#[CURSOR THEME PROVISIONING] [N]
             cursor_src = self.find_dir_flexible(target_theme_dir, "cursor") or self.find_dir_flexible(target_theme_dir, "cursor-theme")
             custom_cursor_name = f"Foolish-Cursor-{self.selected_theme.get()}"
             sys_cursor_dest = ICONS_SYS_DIR / custom_cursor_name
@@ -397,7 +440,7 @@ class FoolishDeployer:
             else:
                 cursor_to_set = "Adwaita"
 
-#[GTK CONFIGURATION SYNC] [J4]
+#[GTK CONFIGURATION SYNC] [O]
             gtk3_dir = HOME_DIR / ".config/gtk-3.0"
             gtk4_dir = HOME_DIR / ".config/gtk-4.0"
             gtk3_dir.mkdir(parents=True, exist_ok=True)
@@ -412,7 +455,7 @@ gtk-application-prefer-dark-theme=1
             (gtk3_dir / "settings.ini").write_text(gtk_settings_content)
             (gtk4_dir / "settings.ini").write_text(gtk_settings_content)
 
-#[DYNAMIC WALLPAPER SCRIPTING] [K]
+#[DYNAMIC WALLPAPER SCRIPTING] [P]
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             sys_scripts_dir.mkdir(parents=True, exist_ok=True)
             launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
@@ -451,7 +494,7 @@ fi
                 
             sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
 
-#[KITTY DECOUPLED ROUTING] [L]
+#[KITTY DECOUPLED ROUTING] [Q]
             KITTY_SYS_DIR = HOME_DIR / ".config/kitty"
             if KITTY_SYS_DIR.exists(): shutil.rmtree(KITTY_SYS_DIR)
             KITTY_SYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -464,7 +507,7 @@ fi
             else:
                 print(f"Warning: Aesthetic Kitty kitty.conf missing from theme: {target_theme_dir.name}")
 
-#[FASTFETCH DECOUPLED ROUTING] [M]
+#[FASTFETCH DECOUPLED ROUTING] [R]
             FASTFETCH_SYS_DIR = HOME_DIR / ".config/fastfetch"
             if FASTFETCH_SYS_DIR.exists(): shutil.rmtree(FASTFETCH_SYS_DIR)
             FASTFETCH_SYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -483,11 +526,10 @@ fi
             else:
                 print(f"Warning: Aesthetic Fastfetch config.jsonc missing from theme: {target_theme_dir.name}")
 
-#[VESKTOP DECOUPLED ROUTING] [N]
+#[VESKTOP DECOUPLED ROUTING] [S]
             VESKTOP_NATIVE_DIR = HOME_DIR / ".config/vesktop/themes"
             VESKTOP_FLATPAK_DIR = HOME_DIR / ".var/app/dev.vencord.Vesktop/config/vesktop/themes"
             
-            # Wipe and recreate both directories to ensure a clean slate
             for v_dir in [VESKTOP_NATIVE_DIR, VESKTOP_FLATPAK_DIR]:
                 if v_dir.exists(): shutil.rmtree(v_dir)
                 v_dir.mkdir(parents=True, exist_ok=True)
@@ -502,15 +544,13 @@ fi
                         break
 
             if vesktop_theme and vesktop_theme.exists():
-                # Deploy to both Native and Flatpak paths
                 shutil.copy(vesktop_theme, VESKTOP_NATIVE_DIR / "fools-gaze.theme.css")
                 shutil.copy(vesktop_theme, VESKTOP_FLATPAK_DIR / "fools-gaze.theme.css")
             else:
                 print(f"Warning: Aesthetic Vesktop .theme.css missing from theme: {target_theme_dir.name}")
 
-#[MEDIA SERVICES ENABLING] [O]
+#[MEDIA SERVICES ENABLING] [T]
             print("Enabling PipeWire audio & Wayland streaming services...")
-            # Swapped bundled check=True call for explicit non-crashing granular iterations
             services_to_sync = ["pipewire", "pipewire-pulse", "wireplumber"]
             for service in services_to_sync:
                 try:
@@ -521,7 +561,7 @@ fi
                 except Exception as service_err:
                     print(f"Audio service provision skip on {service}: {service_err}")
 
-#[GTK INJECTION & FINAL RELOAD] [P]
+#[GTK INJECTION & FINAL RELOAD] [U]
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 set $gnome-schema org.gnome.desktop.interface
@@ -539,9 +579,9 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
                 "include ~/.config/sway/SwayVariables.conf\n"
                 "include ~/.config/sway/Foolish_Layout.conf\n"
                 "include ~/.config/sway/Foolish_Keybinds.conf\n"
+                "include ~/.config/sway/Foolish_Auto_Starts.conf\n"
                 "include ~/.config/sway/wallpaper.conf\n"
                 f"{gtk_injection}\n"
-                "exec_always bash -c \"killall waybar; sleep 1; waybar\"\n"
             )
             sys_main_config.write_text(monolithic_config)
 
@@ -551,7 +591,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
         except Exception as e:
             self.show_error_and_exit(str(e))
 
-#[DIALOG WINDOWS] [Q]
+#[DIALOG WINDOWS] [V]
     def show_success_and_exit(self):
         def callback():
             messagebox.showinfo("Success", "System synchronized and deployed successfully!")
