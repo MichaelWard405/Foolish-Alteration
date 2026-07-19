@@ -2,49 +2,46 @@
     font-family: "BigBlueTerm437 Nerd Font Mono", "BigBlueTerm437", monospace;
 }
 
-@define-color window_bg_color #100d0d;
-@define-color window_fg_color #bac2de;
+window.background, 
+window.nemo-window {
+    background-color: rgba(16, 13, 13, 0.95);
+    background-image: none;
+    color: #bac2de;
+}
 
-@define-color view_bg_color #141111;
-@define-color view_fg_color #ffffff;
+button, entry, combobox, spinbutton, .frame, frame, notebook {
+    background-color: #141111;
+    border: 1px solid #332a2a;
+    border-radius: 4px;
+    padding: 5px;
+    color: #ffffff;
+    background-image: none;
+}
+
+button:hover, combobox:hover {
+    border-color: #ff6b6b;
+    background-color: rgba(255, 107, 107, 0.1);
+}
 
 NemoWindow .view,
 NemoWindow iconview,
 NemoWindow treeview,
 .nemo-window .places-treeview,
 GtkTreeView {
-    background-color: #141111;
+    background-color: rgba(20, 17, 17, 0.70);
     background-image: none;
     color: #ffffff;
 }
 
-window.nemo-window,
-.nemo-window .sidebar {
-    background-color: #0c0a0a;
-    background-image: none;
+headerbar {
+    background-color: rgba(12, 10, 10, 0.98);
+    color: #ffffff;
+    border-bottom: 1px solid #ff6b6b;
 }
 
 @define-color accent_color #ff6b6b;
 @define-color accent_bg_color #ff6b6b;
 @define-color accent_fg_color #100d0d;
-
-@define-color headerbar_bg_color #0c0a0a;
-@define-color headerbar_fg_color #ffffff;
-@define-color headerbar_border_color #ff6b6b;
-
-@define-color card_bg_color #141111;
-@define-color card_fg_color #ffffff;
-@define-color dialog_bg_color #100d0d;
-@define-color dialog_fg_color #ffffff;
-@define-color popover_bg_color #0c0a0a;
-@define-color popover_fg_color #ffffff;
-
-@define-color destructive_color #ff4a4a;
-@define-color destructive_bg_color #ff4a4a;
-@define-color destructive_fg_color #ffffff;
-@define-color warning_color #f9e2af;
-@define-color warning_bg_color #f9e2af;
-@define-color warning_fg_color #100d0d;
 
 window {
     border: 1px solid #ff6b6b;
