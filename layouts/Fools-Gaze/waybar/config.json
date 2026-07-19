@@ -2,10 +2,9 @@
     "layer": "top",
     "position": "top",
     "height": 34,
-    "spacing": 4,
-    "modules-left": ["sway/workspaces", "sway/mode", "sway/window"],
+    "modules-left": ["sway/workspaces", "sway/window"],
     "modules-center": ["clock"],
-    "modules-right": ["cpu", "memory", "pulseaudio", "network", "battery", "tray"],
+    "modules-right": ["cpu", "memory", "network", "pulseaudio"],
 
     "sway/workspaces": {
         "disable-scroll": true,
@@ -19,29 +18,30 @@
             "5": "V",
             "urgent": "!",
             "focused": "*",
-            "default": "-"
+            "default": "_"
         }
     },
     "clock": {
-        "timezone": "auto",
-        "format": "TIME: {:%I:%M %p} | DATE: {%b %d}"
+        "format": "{:%I:%M %p  |  %a, %b %d}",
+        "on-click": "zenity --calendar"
     },
-    "cpu": { "format": "CPU: {usage}%" },
-    "memory": { "format": "RAM: {}%" },
-    "pulseaudio": {
-        "format": "VOL: {volume}%",
-        "format-muted": "VOL: MUTED",
-        "on-click": "pavucontrol"
+    "cpu": {
+        "format": "CPU: {usage}%",
+        "on-click": "kitty -e btop"
+    },
+    "memory": {
+        "format": "RAM: {}%",
+        "on-click": "kitty -e btop"
     },
     "network": {
-        "format-wifi": "NET: {essid}",
-        "format-ethernet": "NET: LINKED",
-        "format-disconnected": "NET: OFFLINE"
+        "format-wifi": "WIFI: {essid}",
+        "format-ethernet": "LAN: Connected",
+        "format-disconnected": "Offline",
+        "on-click": "kitty -e nmtui"
     },
-    "battery": {
-        "states": { "warning": 30, "critical": 15 },
-        "format": "BAT: {capacity}%",
-        "format-charging": "CHR: {capacity}%"
-    },
-    "tray": { "icon-size": 16, "spacing": 10 }
+    "pulseaudio": {
+        "format": "VOL: {volume}%",
+        "format-muted": "MUTED",
+        "on-click": "pavucontrol"
+    }
 }
