@@ -47,3 +47,7 @@ window {
     border: 1px solid #ff6b6b;
     border-radius: 0px;
 }
+
+menubar > menuitem {
+    padding: 4px 8px;
+}
