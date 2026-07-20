@@ -1,33 +1,61 @@
-
-window#sfwbar {
-    background-color: rgba(20, 17, 17, 0.85);
-    border-top: 1px solid #ff6b6b;
-    font-family: "BigBlueTerm437 Nerd Font Mono", "BigBlueTerm437", monospace;
-    font-size: 12px;
+hidden {
+  -GtkWidget-visible: false;
 }
 
-#taskbar button,
-button.taskbar {
-    background-color: #141111;
-    color: #ffffff;
-    border: 1px solid #332a2a;
-    border-radius: 4px;
-    padding: 3px 8px;
-    margin: 2px 4px;
-    min-width: 120px;
-    min-height: 24px;
+button,
+button image {
+  min-height: 0px;
+  outline-style: none;
+  box-shadow: none;
+  background-image: none;
+  border-image: none;
 }
 
-#taskbar button:checked,
-#taskbar button.active,
-button.taskbar.active {
-    background-color: rgba(255, 107, 107, 0.2);
-    border-color: #ff6b6b;
-    color: #ff6b6b;
+label {
+  font-family: "bigblueterm", monospace;
+  font-size: calc(@bar_thickness * 0.7);
 }
 
-#taskbar button:hover,
-button.taskbar:hover {
-    background-color: #ff6b6b;
-    color: #000000;
+image {
+  -ScaleImage-symbolic: true;
+}
+
+/* taskbar CSS properties */
+button#taskbar_item {
+  padding: calc(@bar_thickness * 0.1);
+  border-radius: 0px;
+  border-width: 0px;
+  -GtkWidget-hexpand: false;
+}
+
+button#taskbar_item:hover {
+  background-color: rgba(213,213,213,0.6);
+}
+
+button#taskbar_item image {
+  min-height: calc(@bar_thickness * 0.8);
+  min-width: calc(@bar_thickness * 0.8);
+  padding-right: calc(@bar_thickness * 0.25);
+  padding-left: calc(@bar_thickness * 0.25);
+  -ScaleImage-symbolic: false;
+  -GtkWidget-vexpand: true;
+}
+
+/* tray CSS properties */
+button#tray_item {
+  margin: 0px;
+  border: none;
+  padding: 0px;
+}
+
+button#tray_item.passive {
+  -GtkWidget-visible: false;
+}
+
+button#tray_item image {
+  -GtkWidget-valign: center;
+  -GtkWidget-vexpand: true;
+  padding: 3px;
+  margin: 0px;
+  border: none;
 }
