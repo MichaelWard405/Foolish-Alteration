@@ -49,5 +49,18 @@ window {
 }
 
 menubar > menuitem {
-    padding: 4px 8px;
+    padding: 4px 10px;
+    margin: 0px 2px;
+    border-radius: 4px;
+    
+    font-family: "BigBlueTerm437 Nerd Font Mono", "BigBlueTerm437", monospace;
+    color: #ffffff;
+    background-color: rgba(20, 17, 17, 0.85); 
+    
+    transition: all 0.2s ease-in-out; 
+}
+
+menubar > menuitem:hover {
+    background-color: #ff6b6b; 
+    color: #000000; 
 }
