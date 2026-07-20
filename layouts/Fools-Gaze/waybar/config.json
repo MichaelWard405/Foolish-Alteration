@@ -31,7 +31,7 @@
     },
     "clock": {
         "format": "{:%I:%M %p  |  %a, %b %d}",
-        "on-click": "zenity --calendar"
+        "on-click": "kitty --title calendar_float -e gcalcli agenda"
     },
     "bluetooth": {
         "format": "BT: {status}",
