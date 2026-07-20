@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 #=======================
-# Dependencies
+# Dependencies [1]
 #=======================
+#[CORE IMPORTS] [A]
 import os
 import json
 import shutil
@@ -12,8 +13,9 @@ from tkinter import ttk, messagebox
 from pathlib import Path
 
 #=======================
-# Master Paths
+# Master Paths [2]
 #=======================
+#[SYSTEM DIRECTORIES] [A]
 HOME_DIR = Path.home()
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
 WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
@@ -24,6 +26,7 @@ LY_SYS_DIR = HOME_DIR / ".config/ly"
 THEMES_SYS_DIR = HOME_DIR / ".themes" 
 ICONS_SYS_DIR = HOME_DIR / ".local/share/icons"
 
+#[LOCAL WAREHOUSE DIRECTORIES] [B]
 MASTER_LOCAL_DIR = HOME_DIR / ".local/share/Foolish-Alteration"
 LOCAL_THEMES_DIR = MASTER_LOCAL_DIR / "Themes"
 LOCAL_LAYOUTS_DIR = MASTER_LOCAL_DIR / "Layouts"
@@ -31,13 +34,15 @@ LOCAL_KEYBINDS_DIR = MASTER_LOCAL_DIR / "Keybinds"
 LOCAL_AUTO_STARTS_DIR = MASTER_LOCAL_DIR / "Auto_Starts"
 LOCAL_PACKAGES_DIR = MASTER_LOCAL_DIR / "Packages" 
 
+#[REMOTE REPOSITORY] [C]
 GITHUB_URL = "https://github.com/MichaelWard405/Foolish-Alteration.git"
 TMP_GIT_DIR = HOME_DIR / ".local/share/temp_foolish_git"
 
 #=======================
-# Main Application
+# Main Application [3]
 #=======================
 class FoolishDeployer:
+    #[INITIALIZATION] [A]
     def __init__(self, root_window):
         self.root = root_window
         self.root.title("Foolish-Alteration | Installer")
@@ -60,6 +65,7 @@ class FoolishDeployer:
 
         self.build_ui()
 
+    #[UTILITIES & SEARCH] [B]
     def find_dir_flexible(self, parent_dir: Path, keyword: str) -> Path or None:
         if not parent_dir.exists(): return None
         for item in parent_dir.iterdir():
@@ -83,6 +89,7 @@ class FoolishDeployer:
                 return item
         return None
 
+    #[DIRECTORY MANAGEMENT] [C]
     def create_local_directories(self):
         dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_AUTO_STARTS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR, ICONS_SYS_DIR, NVIM_SYS_DIR, LY_SYS_DIR]
         for directory in dirs:
@@ -106,6 +113,7 @@ class FoolishDeployer:
     def get_default(self, item_list):
         return item_list[0] if item_list else "None"
 
+    #[GITHUB SYNC] [D]
     def sync_warehouse_to_local(self):
         print("Syncing with GitHub Warehouse...")
         if TMP_GIT_DIR.exists():
@@ -135,6 +143,7 @@ class FoolishDeployer:
             if TMP_GIT_DIR.exists():
                 shutil.rmtree(TMP_GIT_DIR)
 
+    #[USER INTERFACE] [E]
     def build_ui(self):
         main_frame = ttk.Frame(self.root, padding=20)
         main_frame.pack(fill='both', expand=True)
@@ -184,6 +193,10 @@ class FoolishDeployer:
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
         deploy_btn.pack(pady=20, ipady=10, fill='x')
 
+#=======================
+# Core Deployment [4]
+#=======================
+    #[EXECUTION HANDLER] [A]
     def execute_deployment(self):
         try:
             target_theme_dir = LOCAL_THEMES_DIR / self.selected_theme.get()
@@ -195,13 +208,12 @@ class FoolishDeployer:
             sys_auto_start_file = SWAY_SYS_DIR / "Foolish_Auto_Starts.conf"
             sys_main_config = SWAY_SYS_DIR / "config"
 
-            # Sway Variables
+            #[SWAY BASE CONFIGS] [B]
             var_src = self.find_file_flexible(target_theme_dir, "variables")
             if not var_src:
                 raise FileNotFoundError(f"Could not find a 'variables' config file under theme: {target_theme_dir.name}")
             shutil.copy(var_src, sys_sway_vars)
 
-            # Keybinds
             keybind_src = LOCAL_KEYBINDS_DIR / self.selected_keybind.get()
             if keybind_src.is_dir():
                 confs = list(keybind_src.glob("*.[cC][oO][nN][fF]"))
@@ -213,7 +225,6 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Keybind profile '{keybind_src.name}' is missing entirely.")
 
-            # Auto Starts
             autostart_src = LOCAL_AUTO_STARTS_DIR / self.selected_auto_start.get()
             if autostart_src.is_dir():
                 confs = list(autostart_src.glob("*.[cC][oO][nN][fF]"))
@@ -225,13 +236,12 @@ class FoolishDeployer:
             else:
                 raise FileNotFoundError(f"Selected Auto Start profile '{autostart_src.name}' is missing entirely.")
 
-            # Layout
             layout_src = self.find_file_flexible(target_layout_dir, "layout")
             if not layout_src:
                 raise FileNotFoundError(f"Could not find a 'layout' config file under layout: {target_layout_dir.name}")
             shutil.copy(layout_src, sys_layout_file)
 
-            # Packages
+            #[PACKAGE PROVISIONING] [C]
             packages_to_install = set()
             flatpaks_to_install = set()
             custom_commands = []
@@ -281,6 +291,7 @@ class FoolishDeployer:
                         subprocess.run(expanded_cmd, shell=True)
                     except Exception as ce: print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
+            #[GUI COMPONENTS] [D]
             # Waybar
             if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
             WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -321,6 +332,19 @@ class FoolishDeployer:
             if sfwbar_style and sfwbar_style.exists():
                 shutil.copy(sfwbar_style, SFWBAR_SYS_DIR / "style.css")
 
+            # Wlogout
+            WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
+            if WLOGOUT_SYS_DIR.exists(): shutil.rmtree(WLOGOUT_SYS_DIR)
+            WLOGOUT_SYS_DIR.mkdir(parents=True, exist_ok=True)
+            layout_wlogout_dir = self.find_dir_flexible(target_layout_dir, "wlogout") or target_layout_dir
+            wlogout_layout = self.find_file_flexible(layout_wlogout_dir, "layout") or self.find_file_flexible(layout_wlogout_dir, "config")
+            theme_wlogout_dir = self.find_dir_flexible(target_theme_dir, "wlogout") or target_theme_dir
+            wlogout_style = self.find_file_flexible(theme_wlogout_dir, "style.css")
+
+            if wlogout_layout and wlogout_layout.exists(): shutil.copy(wlogout_layout, WLOGOUT_SYS_DIR / "layout")
+            if wlogout_style and wlogout_style.exists(): shutil.copy(wlogout_style, WLOGOUT_SYS_DIR / "style.css")
+
+            #[THEMING & TUI] [E]
             # LazyVim / Neovim Theme Sync
             theme_nvim_dir = self.find_dir_flexible(target_theme_dir, "nvim") or self.find_dir_flexible(target_theme_dir, "lazyvim")
             if theme_nvim_dir and theme_nvim_dir.exists():
@@ -335,20 +359,22 @@ class FoolishDeployer:
                 ly_conf = self.find_file_flexible(theme_ly_dir, "config.ini")
                 if ly_conf and ly_conf.exists() and os.access("/etc/ly", os.W_OK):
                     shutil.copy(ly_conf, Path("/etc/ly/config.ini"))
+            
+            # Plymouth Boot Theme Provisioning
+            theme_plymouth_dir = self.find_dir_flexible(target_theme_dir, "plymouth")
+            if theme_plymouth_dir and theme_plymouth_dir.exists():
+                custom_plymouth_name = f"Foolish-{self.selected_theme.get()}"
+                sys_plymouth_dest = Path("/usr/share/plymouth/themes") / custom_plymouth_name
+                try:
+                    subprocess.run(
+                        f"sudo mkdir -p {sys_plymouth_dest} && sudo cp -r {theme_plymouth_dir}/* {sys_plymouth_dest}/ && sudo plymouth-set-default-theme -R {custom_plymouth_name}",
+                        shell=True, check=False
+                    )
+                except Exception as ply_err:
+                    print(f"Plymouth boot theme provision skipped: {ply_err}")
 
-            # Wlogout
-            WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
-            if WLOGOUT_SYS_DIR.exists(): shutil.rmtree(WLOGOUT_SYS_DIR)
-            WLOGOUT_SYS_DIR.mkdir(parents=True, exist_ok=True)
-            layout_wlogout_dir = self.find_dir_flexible(target_layout_dir, "wlogout") or target_layout_dir
-            wlogout_layout = self.find_file_flexible(layout_wlogout_dir, "layout") or self.find_file_flexible(layout_wlogout_dir, "config")
-            theme_wlogout_dir = self.find_dir_flexible(target_theme_dir, "wlogout") or target_theme_dir
-            wlogout_style = self.find_file_flexible(theme_wlogout_dir, "style.css")
-
-            if wlogout_layout and wlogout_layout.exists(): shutil.copy(wlogout_layout, WLOGOUT_SYS_DIR / "layout")
-            if wlogout_style and wlogout_style.exists(): shutil.copy(wlogout_style, WLOGOUT_SYS_DIR / "style.css")
-
-            # Scripts
+            #[SCRIPTS & WALLPAPER] [F]
+            # Scripts Directory Sync
             local_scripts = self.find_dir_flexible(target_theme_dir, "scripts") or (target_theme_dir / "scripts")
             sys_scripts_dir = SWAY_SYS_DIR / "scripts"
             if local_scripts.exists():
@@ -357,7 +383,41 @@ class FoolishDeployer:
                 for script_file in sys_scripts_dir.rglob("*"):
                     if script_file.is_file(): script_file.chmod(script_file.stat().st_mode | 0o111)
 
-            # GTK / Icons / Cursor
+            # Dynamic Wallpaper Scripting
+            sys_scripts_dir.mkdir(parents=True, exist_ok=True)
+            launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
+            script_content = r"""#!/bin/bash
+pkill mpvpaper
+killall swaybg
+sleep 0.1
+if [[ "$1" =~ \.(mp4|mkv|webm)$ ]]; then
+    mpvpaper -o 'loop no-audio' '*' "$1"
+elif [ -f "$1" ]; then
+    swaybg -i "$1" -m fill
+else
+    swaybg -c '#141111'
+fi
+"""
+            launcher_script.write_text(script_content)
+            launcher_script.chmod(launcher_script.stat().st_mode | 0o111)
+
+            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
+            flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
+            
+            for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
+                try: old_wp.unlink()
+                except: pass
+            
+            if flex_wp and flex_wp.exists():
+                sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{flex_wp.suffix.lower()}"
+                shutil.copy(flex_wp, sys_wp_dest)
+                sway_command = f"exec_always {launcher_script.resolve()} '{sys_wp_dest.resolve()}'\n"
+            else:
+                sway_command = f"exec_always {launcher_script.resolve()} ''\n"
+                
+            sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
+
+            #[GTK & CURSOR] [G]
             gtk_src = self.find_dir_flexible(target_theme_dir, "gtk-theme") or (target_theme_dir / "gtk-theme")
             custom_gtk_name = f"Foolish-{self.selected_theme.get()}"
             sys_theme_dest = THEMES_SYS_DIR / custom_gtk_name
@@ -399,43 +459,8 @@ gtk-application-prefer-dark-theme=1
             (gtk3_dir / "settings.ini").write_text(gtk_settings_content)
             (gtk4_dir / "settings.ini").write_text(gtk_settings_content)
 
-            # Dynamic Wallpaper Scripting (Raw String prevents invalid escape sequence errors)
-            sys_scripts_dir = SWAY_SYS_DIR / "scripts"
-            sys_scripts_dir.mkdir(parents=True, exist_ok=True)
-            launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
-            
-            script_content = r"""#!/bin/bash
-pkill mpvpaper
-killall swaybg
-sleep 0.1
-if [[ "$1" =~ \.(mp4|mkv|webm)$ ]]; then
-    mpvpaper -o 'loop no-audio' '*' "$1"
-elif [ -f "$1" ]; then
-    swaybg -i "$1" -m fill
-else
-    swaybg -c '#141111'
-fi
-"""
-            launcher_script.write_text(script_content)
-            launcher_script.chmod(launcher_script.stat().st_mode | 0o111)
-
-            sys_wp_conf = SWAY_SYS_DIR / "wallpaper.conf"
-            flex_wp = self.find_file_flexible(target_theme_dir, "wallpaper")
-            
-            for old_wp in SWAY_SYS_DIR.glob("foolish_wallpaper.*"):
-                try: old_wp.unlink()
-                except: pass
-            
-            if flex_wp and flex_wp.exists():
-                sys_wp_dest = SWAY_SYS_DIR / f"foolish_wallpaper{flex_wp.suffix.lower()}"
-                shutil.copy(flex_wp, sys_wp_dest)
-                sway_command = f"exec_always {launcher_script.resolve()} '{sys_wp_dest.resolve()}'\n"
-            else:
-                sway_command = f"exec_always {launcher_script.resolve()} ''\n"
-                
-            sys_wp_conf.write_text(f"# Generated automatically by Foolish Installer\n{sway_command}")
-
-            # Kitty / Fastfetch / Vesktop
+            #[APPLICATIONS] [H]
+            # Kitty
             KITTY_SYS_DIR = HOME_DIR / ".config/kitty"
             if KITTY_SYS_DIR.exists(): shutil.rmtree(KITTY_SYS_DIR)
             KITTY_SYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -443,6 +468,7 @@ fi
             kitty_conf = self.find_file_flexible(theme_kitty_dir, "kitty")
             if kitty_conf and kitty_conf.exists(): shutil.copy(kitty_conf, KITTY_SYS_DIR / "kitty.conf")
 
+            # Fastfetch
             FASTFETCH_SYS_DIR = HOME_DIR / ".config/fastfetch"
             if FASTFETCH_SYS_DIR.exists(): shutil.rmtree(FASTFETCH_SYS_DIR)
             FASTFETCH_SYS_DIR.mkdir(parents=True, exist_ok=True)
@@ -450,6 +476,7 @@ fi
             fastfetch_conf = self.find_file_flexible(theme_fastfetch_dir, "config")
             if fastfetch_conf and fastfetch_conf.exists(): shutil.copy(fastfetch_conf, FASTFETCH_SYS_DIR / "config.jsonc")
 
+            # Vesktop
             VESKTOP_NATIVE_DIR = HOME_DIR / ".config/vesktop/themes"
             VESKTOP_FLATPAK_DIR = HOME_DIR / ".var/app/dev.vencord.Vesktop/config/vesktop/themes"
             for v_dir in [VESKTOP_NATIVE_DIR, VESKTOP_FLATPAK_DIR]:
@@ -467,7 +494,7 @@ fi
                 shutil.copy(vesktop_theme, VESKTOP_NATIVE_DIR / "fools-gaze.theme.css")
                 shutil.copy(vesktop_theme, VESKTOP_FLATPAK_DIR / "fools-gaze.theme.css")
 
-            # Final Monolithic Config Sync
+            #[FINAL INJECTION] [I]
             gtk_injection = f"""
 # --- AUTOMATED GTK SYNC ---
 set $gnome-schema org.gnome.desktop.interface
@@ -496,6 +523,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
         except Exception as e:
             self.show_error_and_exit(str(e))
 
+    #[CLOSURE AND ERROR HANDLING] [J]
     def show_success_and_exit(self):
         def callback():
             messagebox.showinfo("Success", "System synchronized and deployed successfully!")
