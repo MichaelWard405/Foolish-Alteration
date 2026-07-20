@@ -1,0 +1,33 @@
+
+window#sfwbar {
+    background-color: rgba(20, 17, 17, 0.85);
+    border-top: 1px solid #ff6b6b;
+    font-family: "BigBlueTerm437 Nerd Font Mono", "BigBlueTerm437", monospace;
+    font-size: 12px;
+}
+
+#taskbar button,
+button.taskbar {
+    background-color: #141111;
+    color: #ffffff;
+    border: 1px solid #332a2a;
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin: 2px 4px;
+    min-width: 120px;
+    min-height: 24px;
+}
+
+#taskbar button:checked,
+#taskbar button.active,
+button.taskbar.active {
+    background-color: rgba(255, 107, 107, 0.2);
+    border-color: #ff6b6b;
+    color: #ff6b6b;
+}
+
+#taskbar button:hover,
+button.taskbar:hover {
+    background-color: #ff6b6b;
+    color: #000000;
+}
