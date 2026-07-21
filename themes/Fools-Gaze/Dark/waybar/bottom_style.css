@@ -1,0 +1,59 @@
+* {
+    font-family: "JetBrainsMono Nerd Font", "Font Awesome 6 Free", sans-serif;
+    font-size: 16px;
+    min-height: 0;
+}
+
+window#waybar {
+    background-color: rgba(20, 17, 17, 0.85); /* Matches your wallpaper script fallback */
+    border-top: 2px solid rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+}
+
+/* Python Pin Button */
+#custom-python_script {
+    padding: 0 12px;
+    margin: 4px 6px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.05);
+    transition: background-color 0.2s ease;
+}
+
+#custom-python_script:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Windows-style Taskbar */
+#taskbar button {
+    padding: 0 10px;
+    margin: 4px 2px;
+    border-radius: 8px;
+    background-color: transparent;
+    transition: all 0.2s ease;
+}
+
+#taskbar button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
+}
+
+#taskbar button.active {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-bottom: 2px solid #89b4fa; /* Accent color for active window */
+    border-radius: 8px 8px 0 0;
+}
+
+/* Scratchpad Counter */
+#scratchpad {
+    padding: 0 12px;
+    margin: 4px 6px;
+    border-radius: 8px;
+    background-color: rgba(229, 192, 123, 0.15); /* Soft yellow warning tint */
+    color: #e5c07b;
+    font-weight: bold;
+    transition: all 0.2s ease;
+}
+
+#scratchpad:hover {
+    background-color: rgba(229, 192, 123, 0.3);
+}

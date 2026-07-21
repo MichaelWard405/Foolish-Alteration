@@ -1,0 +1,43 @@
+{
+    "layer": "top",
+    "position": "bottom",
+    "height": 36,
+    "spacing": 4,
+    "exclusive": true,
+    
+    "modules-left": [
+        "custom/python_script"
+    ],
+    "modules-center": [
+        "wlr/taskbar"
+    ],
+    "modules-right": [
+        "sway/scratchpad"
+    ],
+
+    "custom/python_script": {
+        "format": "📌",
+        "tooltip": true,
+        "tooltip-format": "Launch Foolish Alteration",
+        "on-click": "kitty -e python3 ~/.local/share/Foolish-Alteration/Foolish_Alteration.py"
+    },
+
+    "wlr/taskbar": {
+        "format": "{icon}",
+        "icon-size": 20,
+        "tooltip-format": "{title}",
+        "on-click": "activate",
+        "on-click-middle": "close",
+        "ignore-list": [
+            "kitty-scratchpad" 
+        ]
+    },
+
+    "sway/scratchpad": {
+        "format": " {count}",
+        "show-empty": false,
+        "tooltip": true,
+        "tooltip-format": "{app}: {title}",
+        "on-click": "swaymsg 'scratchpad show'"
+    }
+}
