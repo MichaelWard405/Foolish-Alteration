@@ -20,7 +20,6 @@ HOME_DIR = Path.home()
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
 WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
 WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
-SFWBAR_SYS_DIR = HOME_DIR / ".config/sfwbar"
 NVIM_SYS_DIR = HOME_DIR / ".config/nvim"
 LY_SYS_DIR = HOME_DIR / ".config/ly"
 THEMES_SYS_DIR = HOME_DIR / ".themes" 
@@ -292,19 +291,28 @@ class FoolishDeployer:
                     except Exception as ce: print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
             #[GUI COMPONENTS] [D]
-            # Waybar
+            # Waybar (Top & Bottom Provisioning)
             if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
             WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
+            
             layout_waybar_dir = self.find_dir_flexible(target_layout_dir, "waybar") or target_layout_dir
-            layout_config = self.find_file_flexible(layout_waybar_dir, "config")
             theme_waybar_dir = self.find_dir_flexible(target_theme_dir, "waybar") or target_theme_dir
-            theme_style = self.find_file_flexible(theme_waybar_dir, "style.css")
+            theme_colours = self.find_file_flexible(target_theme_dir, "colours.css")
+            
+            # Top Waybar
+            top_config = self.find_file_flexible(layout_waybar_dir, "top_config")
+            top_style = self.find_file_flexible(theme_waybar_dir, "top_style.css") or self.find_file_flexible(theme_waybar_dir, "top_style")
+            if top_config and top_config.exists(): shutil.copy(top_config, WAYBAR_SYS_DIR / "top_config")
+            if top_style and top_style.exists(): shutil.copy(top_style, WAYBAR_SYS_DIR / "top_style.css")
+            
+            # Bottom Waybar
+            bottom_config = self.find_file_flexible(layout_waybar_dir, "bottom_config")
+            bottom_style = self.find_file_flexible(theme_waybar_dir, "bottom_style.css") or self.find_file_flexible(theme_waybar_dir, "bottom_style")
+            if bottom_config and bottom_config.exists(): shutil.copy(bottom_config, WAYBAR_SYS_DIR / "bottom_config")
+            if bottom_style and bottom_style.exists(): shutil.copy(bottom_style, WAYBAR_SYS_DIR / "bottom_style.css")
 
-            if layout_config and layout_config.exists(): shutil.copy(layout_config, WAYBAR_SYS_DIR / "config")
-            if theme_style and theme_style.exists():
-                shutil.copy(theme_style, WAYBAR_SYS_DIR / "style.css")
-                theme_colours = self.find_file_flexible(target_theme_dir, "colours.css")
-                if theme_colours and theme_colours.exists(): shutil.copy(theme_colours, WAYBAR_SYS_DIR / "colours.css")
+            if theme_colours and theme_colours.exists(): 
+                shutil.copy(theme_colours, WAYBAR_SYS_DIR / "colours.css")
 
             # Wofi
             if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
@@ -316,21 +324,6 @@ class FoolishDeployer:
 
             if layout_wofi_config and layout_wofi_config.exists(): shutil.copy(layout_wofi_config, WOFI_SYS_DIR / "config")
             if theme_wofi_style and theme_wofi_style.exists(): shutil.copy(theme_wofi_style, WOFI_SYS_DIR / "style.css")
-
-            # SFWBar
-            if SFWBAR_SYS_DIR.exists(): shutil.rmtree(SFWBAR_SYS_DIR)
-            SFWBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
-            layout_sfwbar_dir = self.find_dir_flexible(target_layout_dir, "sfwbar") or target_layout_dir
-            sfwbar_conf = self.find_file_flexible(layout_sfwbar_dir, "sfwbar.config") or self.find_file_flexible(layout_sfwbar_dir, "sfwbar")
-
-            if sfwbar_conf and sfwbar_conf.exists():
-                shutil.copy(sfwbar_conf, SFWBAR_SYS_DIR / "sfwbar.config")
-            
-            theme_sfwbar_dir = self.find_dir_flexible(target_theme_dir, "sfwbar") or target_theme_dir
-            sfwbar_style = self.find_file_flexible(theme_sfwbar_dir, "style.css") or self.find_file_flexible(theme_sfwbar_dir, "sfwbar.css")
-
-            if sfwbar_style and sfwbar_style.exists():
-                shutil.copy(sfwbar_style, SFWBAR_SYS_DIR / "style.css")
 
             # Wlogout
             WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
