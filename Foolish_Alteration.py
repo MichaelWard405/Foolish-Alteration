@@ -357,8 +357,14 @@ class FoolishDeployer:
                 LY_SYS_DIR.mkdir(parents=True, exist_ok=True)
                 shutil.copytree(theme_ly_dir, LY_SYS_DIR, dirs_exist_ok=True)
                 ly_conf = self.find_file_flexible(theme_ly_dir, "config.ini")
-                if ly_conf and ly_conf.exists() and os.access("/etc/ly", os.W_OK):
-                    shutil.copy(ly_conf, Path("/etc/ly/config.ini"))
+                
+                # MODIFIED: Triggers sudo internally so Ly config bypasses write-permission checks
+                if ly_conf and ly_conf.exists():
+                    print("\n[!] Elevated permissions required for Ly TUI. Please check the terminal for sudo prompt...")
+                    try:
+                        subprocess.run(f"sudo cp {ly_conf} /etc/ly/config.ini", shell=True, check=False)
+                    except Exception as ly_err:
+                        print(f"Ly system config provision skipped: {ly_err}")
             
             # Plymouth Boot Theme Provisioning
             theme_plymouth_dir = self.find_dir_flexible(target_theme_dir, "plymouth")
