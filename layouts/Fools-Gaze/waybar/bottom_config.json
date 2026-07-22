@@ -16,10 +16,10 @@
     ],
 
     "custom/python_script": {
-        "format": "📌",
+        "format": "^",
         "tooltip": true,
         "tooltip-format": "Launch Foolish Alteration",
-        "on-click": "kitty -e python3 ~/.local/share/Foolish-Alteration/Foolish_Alteration.py"
+        "on-click": "kitty -e python ~/Foolish-Alteration/Foolish_Alteration.py"
     },
 
     "wlr/taskbar": {
