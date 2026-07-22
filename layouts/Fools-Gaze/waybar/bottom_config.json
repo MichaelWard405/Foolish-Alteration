@@ -16,7 +16,7 @@
     ],
 
     "custom/python_script": {
-        "format": "^",
+        "format": "[FOOLISH] [ALTERATION]",
         "tooltip": true,
         "tooltip-format": "Launch Foolish Alteration",
         "on-click": "kitty -e python ~/Foolish-Alteration/Foolish_Alteration.py"
