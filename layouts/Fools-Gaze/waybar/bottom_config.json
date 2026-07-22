@@ -12,7 +12,8 @@
         "wlr/taskbar"
     ],
     "modules-right": [
-        "sway/scratchpad"
+        "sway/scratchpad",
+        "group/tray-drawer"
     ],
 
     "custom/python_script": {
@@ -39,5 +40,28 @@
         "tooltip": true,
         "tooltip-format": "{app}: {title}",
         "on-click": "swaymsg 'scratchpad show'"
+    },
+
+    "group/tray-drawer": {
+        "orientation": "horizontal",
+        "drawer": {
+            "transition-duration": 300,
+            "children-class": "hidden-applets",
+            "transition-left-to-right": false
+        },
+        "modules": [
+            "custom/arrow",
+            "tray"
+        ]
+    },
+
+    "custom/arrow": {
+        "format": "^",
+        "tooltip": false
+    },
+
+    "tray": {
+        "icon-size": 18,
+        "spacing": 8
     }
 }
