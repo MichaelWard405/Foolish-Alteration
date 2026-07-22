@@ -344,6 +344,20 @@ class FoolishDeployer:
                 NVIM_SYS_DIR.mkdir(parents=True, exist_ok=True)
                 shutil.copytree(theme_nvim_dir, NVIM_SYS_DIR, dirs_exist_ok=True)
 
+                # Ensure LazyVim theme plugin file is properly placed in lua/plugins/
+                lazy_plugins_dir = NVIM_SYS_DIR / "lua" / "plugins"
+                lazy_plugins_dir.mkdir(parents=True, exist_ok=True)
+                
+                # If theme.lua was copied directly to root (~/.config/nvim/theme.lua), move/copy to lua/plugins/
+                root_theme_file = NVIM_SYS_DIR / "theme.lua"
+                if root_theme_file.exists():
+                    shutil.copy(root_theme_file, lazy_plugins_dir / "theme.lua")
+
+                # Flexible fallback: check for any theme.lua inside theme_nvim_dir
+                found_theme_file = self.find_file_flexible(theme_nvim_dir, "theme")
+                if found_theme_file and found_theme_file.suffix == ".lua":
+                    shutil.copy(found_theme_file, lazy_plugins_dir / "theme.lua")
+
             # Ly TUI / Display Manager Sync Check
             theme_ly_dir = self.find_dir_flexible(target_theme_dir, "ly")
             if theme_ly_dir and theme_ly_dir.exists():
