@@ -3,9 +3,8 @@
 
   ],
   "Packages": [
-    "pamac-aur",
-    "appstream-glib",
-    "pamac-flatpak"
+    "pamac-all",
+    "appstream-glib"
   ],
   "Commands": [
 
