@@ -16,6 +16,7 @@
     "rm -rf ~/.cache/nvim",
     "git clone https://github.com/LazyVim/starter ~/.config/nvim",
     "rm -rf ~/.config/nvim/.git",
+    "[ ! -f ~/.config/nvim/init.lua ] && git clone https://github.com/LazyVim/starter ~/.config/nvim && rm -rf ~/.config/nvim/.git || echo 'LazyVim already installed'",
     
     "echo 'return {' > ~/.config/nvim/lua/plugins/added_plugins.lua",
     "echo '  { \"akinsho/toggleterm.nvim\", version = \"*\", config = true },' >> ~/.config/nvim/lua/plugins/added_plugins.lua",
