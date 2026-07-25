@@ -1,6 +1,7 @@
 {
   "Flatpak": [
-    "com.github.tchx84.Flatseal"
+    "com.github.tchx84.Flatseal",
+    "io.github.flattool.Warehouse"
   ],
   "Packages": [
 
