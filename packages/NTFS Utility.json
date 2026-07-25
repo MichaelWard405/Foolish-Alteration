@@ -1,0 +1,14 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "ntfs3",
+    "ntfs-3g",
+    "ntfsprogs",
+    "gvfs-ntfs"
+  ],
+  "Commands": [
+
+  ]
+}
