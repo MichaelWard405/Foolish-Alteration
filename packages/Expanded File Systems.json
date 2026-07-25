@@ -1,0 +1,14 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "ffmpegthumbnailer",
+    "nemo-image-converter",
+    "nemo-terminal"
+
+  ],
+  "Commands": [
+
+  ]
+}
