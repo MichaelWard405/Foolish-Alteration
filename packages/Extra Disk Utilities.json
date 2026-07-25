@@ -1,0 +1,18 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "sushis",
+    "gvfs",
+    "gvfs-smb",
+    "gvfs-mtp",
+    "gvfs-gphoto2",
+    "gvfs-afc",
+    "gparted",
+    "gnome-disk-utility"
+  ],
+  "Commands": [
+
+  ]
+}
