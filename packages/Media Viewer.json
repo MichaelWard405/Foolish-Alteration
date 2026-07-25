@@ -9,7 +9,9 @@
     "gst-plugins-bad",
     "gst-plugins-ugly",
     "gst-libav",
-    "ffmpegthumbnailer"
+    "ffmpegthumbnailer",
+    "poppler",
+    "xreader"
   ],
   "Commands": [
 
