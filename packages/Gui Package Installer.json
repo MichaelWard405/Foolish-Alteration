@@ -1,0 +1,13 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "pamac-aur",
+    "appstream-glib",
+    "pamac-flatpak"
+  ],
+  "Commands": [
+
+  ]
+}
