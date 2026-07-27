@@ -1,0 +1,15 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "freecad",
+    "openscad",
+    "ros2-jazzy",
+    "gz-sim",
+    "webots-bin"
+  ],
+  "Commands": [
+
+  ]
+}

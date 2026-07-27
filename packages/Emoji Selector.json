@@ -1,0 +1,11 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+
+  ],
+  "Commands": [
+    "go install github.com/kenshaw/wofimoji@latest"
+  ]
+}

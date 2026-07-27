@@ -1,0 +1,13 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "3dslicer-bin",
+    "slim-simulator",
+    "gromacs"
+  ],
+  "Commands": [
+
+  ]
+}
