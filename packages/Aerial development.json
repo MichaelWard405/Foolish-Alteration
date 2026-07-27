@@ -4,7 +4,7 @@
   ],
   "Packages": [
     "qgroundcontrol-bin",
-    "betaflight-configurator-bin",
+    "betaflight-configurator-bin"
   ],
   "Commands": [
 
