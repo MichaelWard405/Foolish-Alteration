@@ -10,6 +10,6 @@
     "webots-bin"
   ],
   "Commands": [
-    "yay -S sdformat16"
+    "yay -S sdformat16 --noconfirm"
   ]
 }
