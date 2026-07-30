@@ -1,0 +1,14 @@
+{
+  "Flatpak": [
+
+  ],
+  "Packages": [
+    "virtualbox",
+    "virtualbox-host-modules-arch"
+  ],
+  "Commands": [
+    "sudo modprobe vboxdrv",
+    "sudo usermod -aG vboxusers $(whoami)"
+
+  ]
+}
