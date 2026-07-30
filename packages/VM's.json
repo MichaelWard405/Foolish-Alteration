@@ -4,11 +4,12 @@
   ],
   "Packages": [
     "virtualbox",
-    "virtualbox-host-modules-arch"
+    "virtualbox-guest-iso"
   ],
   "Commands": [
     "sudo modprobe vboxdrv",
-    "sudo usermod -aG vboxusers $(whoami)"
+    "sudo usermod -aG vboxusers $(whoami)",
+    "sudo systemctl enable vboxweb.service"
 
   ]
 }
