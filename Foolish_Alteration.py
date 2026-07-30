@@ -45,7 +45,7 @@ class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
         self.root.title("Foolish-Alteration | Installer")
-        self.root.geometry("550x740") 
+        self.root.geometry("550x800") # Increased height for the extra button
         self.root.resizable(False, False)
 
         self.create_local_directories()
@@ -161,7 +161,7 @@ class FoolishDeployer:
         ttk.Label(main_frame, text="4. Select Auto Starts (Exec Commands):").pack(anchor='w', pady=(5, 0))
         ttk.Combobox(main_frame, textvariable=self.selected_auto_start, values=self.available_auto_starts, state="readonly", width=45).pack(pady=5)
 
-        ttk.Label(main_frame, text="5. Select Package Modules to Sync:").pack(anchor='w', pady=(15, 0))
+        ttk.Label(main_frame, text="5. Select Package Modules:").pack(anchor='w', pady=(15, 0))
         
         pkg_frame = ttk.Frame(main_frame, relief="groove", borderwidth=1)
         pkg_frame.pack(fill='both', expand=True, pady=5)
@@ -189,12 +189,73 @@ class FoolishDeployer:
                 cb = ttk.Checkbutton(self.scrollable_frame, text=item, variable=var)
                 cb.pack(anchor='w', pady=2, padx=5)
 
+        # Buttons
         deploy_btn = ttk.Button(main_frame, text="RUN COMPREHENSIVE DEPLOYMENT", command=self.execute_deployment)
-        deploy_btn.pack(pady=20, ipady=10, fill='x')
+        deploy_btn.pack(pady=(15, 5), ipady=10, fill='x')
+
+        uninstall_btn = ttk.Button(main_frame, text="UNINSTALL LOCALS & SELECTED PACKAGES", command=self.execute_uninstall)
+        uninstall_btn.pack(pady=(5, 5), ipady=10, fill='x')
 
 #=======================
 # Core Deployment [4]
 #=======================
+    #[UNINSTALL HANDLER]
+    def execute_uninstall(self):
+        if not messagebox.askyesno("Confirm Uninstall", "This will remove the selected packages, flatpaks, and delete local setup data (themes, layouts). Proceed?"):
+            return
+
+        packages_to_remove = set()
+        flatpaks_to_remove = set()
+
+        def parse_package_json(json_path):
+            if not json_path.exists() or json_path.stat().st_size == 0: return
+            try:
+                data = json.loads(json_path.read_text())
+                if isinstance(data, dict):
+                    normalized_data = {k.lower(): v for k, v in data.items()}
+                    flat_list = normalized_data.get("flatpak", [])
+                    if isinstance(flat_list, list): flatpaks_to_remove.update(flat_list)
+                    pac_list = normalized_data.get("packages", [])
+                    if isinstance(pac_list, list): packages_to_remove.update(pac_list)
+                elif isinstance(data, list):
+                    packages_to_remove.update(data)
+            except Exception as err:
+                print(f"Skipping package JSON processing for {json_path.name}: {err}")
+
+        # Gather packages from selected checkboxes
+        for json_file, var in self.package_checkbox_vars.items():
+            if var.get():
+                parse_package_json(LOCAL_PACKAGES_DIR / json_file)
+
+        # Remove Native Packages
+        if packages_to_remove:
+            try:
+                pkg_list = list(packages_to_remove)
+                pkg_manager = "yay" if shutil.which("yay") else "sudo pacman"
+                subprocess.run(f"{pkg_manager} -Rns --noconfirm " + " ".join(pkg_list), shell=True)
+            except Exception as pe: print(f"Native package removal skipped: {pe}")
+
+        # Remove Flatpaks
+        if flatpaks_to_remove:
+            try:
+                flat_list = list(flatpaks_to_remove)
+                if shutil.which("flatpak"):
+                    subprocess.run("flatpak uninstall -y " + " ".join(flat_list), shell=True)
+            except Exception as fe: print(f"Flatpak framework removal skipped: {fe}")
+            
+        # Remove locally stored configs and warehouses
+        WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
+        dirs_to_remove = [MASTER_LOCAL_DIR, SWAY_SYS_DIR, WAYBAR_SYS_DIR, WOFI_SYS_DIR, LY_SYS_DIR, WLOGOUT_SYS_DIR]
+        for d in dirs_to_remove:
+            if d.exists():
+                try: 
+                    shutil.rmtree(d)
+                except Exception as e: 
+                    print(f"Failed to remove {d}: {e}")
+        
+        messagebox.showinfo("Uninstall Complete", "Selected packages and local environment configurations have been completely removed.")
+        self.root.destroy()
+
     #[EXECUTION HANDLER] [A]
     def execute_deployment(self):
         try:
@@ -406,9 +467,35 @@ return {{
                 shutil.copytree(local_scripts, sys_scripts_dir)
                 for script_file in sys_scripts_dir.rglob("*"):
                     if script_file.is_file(): script_file.chmod(script_file.stat().st_mode | 0o111)
+            
+            sys_scripts_dir.mkdir(parents=True, exist_ok=True)
+
+            # Auto Scale Script Generation
+            autoscale_script = sys_scripts_dir / "auto_scale.py"
+            autoscale_content = """#!/usr/bin/env python3
+import subprocess, json
+try:
+    outputs = json.loads(subprocess.check_output(['swaymsg', '-t', 'get_outputs']).decode('utf-8'))
+    for out in outputs:
+        name = out.get('name')
+        width = out.get('current_mode', {}).get('width', 1920)
+        
+        # Determine appropriate scale based on resolution
+        if width >= 3840:
+            scale = 2.0
+        elif width >= 2560:
+            scale = 1.5
+        else:
+            scale = 1.0
+            
+        subprocess.run(['swaymsg', 'output', name, 'scale', str(scale)])
+except Exception as e:
+    pass
+"""
+            autoscale_script.write_text(autoscale_content)
+            autoscale_script.chmod(autoscale_script.stat().st_mode | 0o111)
 
             # Dynamic Wallpaper Scripting
-            sys_scripts_dir.mkdir(parents=True, exist_ok=True)
             launcher_script = sys_scripts_dir / "launch_wallpaper.sh"
             script_content = r"""#!/bin/bash
 pkill mpvpaper
@@ -537,6 +624,7 @@ exec hash dbus-update-activation-environment 2>/dev/null && dbus-update-activati
                 "include ~/.config/sway/Foolish_Keybinds.conf\n"
                 "include ~/.config/sway/Foolish_Auto_Starts.conf\n"
                 "include ~/.config/sway/wallpaper.conf\n"
+                "exec_always ~/.config/sway/scripts/auto_scale.py\n"
                 f"{gtk_injection}\n"
             )
             sys_main_config.write_text(monolithic_config)
