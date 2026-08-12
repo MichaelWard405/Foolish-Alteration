@@ -1,0 +1,14 @@
+{
+  "packages": [
+    "meson",
+    "json-glib",
+    "gobject-introspection"
+  ],
+  "flatpak": [],
+  "commands": [
+    "git clone https://github.com/rilian-la-te/vala-panel-appmenu.git /tmp/vala-panel-appmenu || git -C /tmp/vala-panel-appmenu pull",
+    "cd /tmp/vala-panel-appmenu/subprojects/appmenu-glib-translator && meson setup build --reconfigure && sudo meson install -C build",
+    "git clone https://github.com/aylur/astal.git /tmp/astal || git -C /tmp/astal pull",
+    "cd /tmp/astal/lib/tray && meson setup build --reconfigure && sudo meson install -C build"
+  ]
+}
