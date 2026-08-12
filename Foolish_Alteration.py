@@ -18,7 +18,7 @@ from pathlib import Path
 #[SYSTEM DIRECTORIES] [A]
 HOME_DIR = Path.home()
 SWAY_SYS_DIR = HOME_DIR / ".config/sway"
-WAYBAR_SYS_DIR = HOME_DIR / ".config/waybar"
+AGS_SYS_DIR = HOME_DIR / ".config/ags"
 WOFI_SYS_DIR = HOME_DIR / ".config/wofi"
 NVIM_SYS_DIR = HOME_DIR / ".config/nvim"
 LY_SYS_DIR = HOME_DIR / ".config/ly"
@@ -45,7 +45,7 @@ class FoolishDeployer:
     def __init__(self, root_window):
         self.root = root_window
         self.root.title("Foolish-Alteration | Installer")
-        self.root.geometry("550x800") # Increased height for the extra button
+        self.root.geometry("550x800")
         self.root.resizable(False, False)
 
         self.create_local_directories()
@@ -90,7 +90,7 @@ class FoolishDeployer:
 
     #[DIRECTORY MANAGEMENT] [C]
     def create_local_directories(self):
-        dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_AUTO_STARTS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, THEMES_SYS_DIR, ICONS_SYS_DIR, NVIM_SYS_DIR, LY_SYS_DIR]
+        dirs = [LOCAL_THEMES_DIR, LOCAL_LAYOUTS_DIR, LOCAL_KEYBINDS_DIR, LOCAL_AUTO_STARTS_DIR, LOCAL_PACKAGES_DIR, SWAY_SYS_DIR, AGS_SYS_DIR, THEMES_SYS_DIR, ICONS_SYS_DIR, NVIM_SYS_DIR, LY_SYS_DIR]
         for directory in dirs:
             directory.mkdir(parents=True, exist_ok=True)
 
@@ -245,7 +245,7 @@ class FoolishDeployer:
             
         # Remove locally stored configs and warehouses
         WLOGOUT_SYS_DIR = HOME_DIR / ".config/wlogout"
-        dirs_to_remove = [MASTER_LOCAL_DIR, SWAY_SYS_DIR, WAYBAR_SYS_DIR, WOFI_SYS_DIR, LY_SYS_DIR, WLOGOUT_SYS_DIR]
+        dirs_to_remove = [MASTER_LOCAL_DIR, SWAY_SYS_DIR, AGS_SYS_DIR, WOFI_SYS_DIR, LY_SYS_DIR, WLOGOUT_SYS_DIR]
         for d in dirs_to_remove:
             if d.exists():
                 try: 
@@ -307,7 +307,7 @@ class FoolishDeployer:
             custom_commands = []
 
             def parse_package_json(json_path):
-                if not json_path.exists() or json_path.stat().st_size == 0: return
+                if not json_path or not json_path.exists() or json_path.stat().st_size == 0: return
                 try:
                     data = json.loads(json_path.read_text())
                     if isinstance(data, dict):
@@ -323,12 +323,20 @@ class FoolishDeployer:
                 except Exception as err:
                     print(f"Skipping package JSON processing for {json_path.name}: {err}")
 
+            # 1. Parse manual selections
             for json_file, var in self.package_checkbox_vars.items():
                 if var.get():
                     parse_package_json(LOCAL_PACKAGES_DIR / json_file)
 
+            # 2. Parse general theme and layout packages
             parse_package_json(self.find_file_flexible(target_theme_dir, "package") or target_theme_dir / "package.json")
             parse_package_json(self.find_file_flexible(target_layout_dir, "package") or target_layout_dir / "package.json")
+
+            # 3. Auto-parse mandatory AGS dependencies from within the theme's 'ags' folder
+            theme_ags_dir_for_deps = self.find_dir_flexible(target_theme_dir, "ags")
+            if theme_ags_dir_for_deps and theme_ags_dir_for_deps.exists():
+                ags_dep_file = self.find_file_flexible(theme_ags_dir_for_deps, "dependency") or (theme_ags_dir_for_deps / "dependency.json")
+                parse_package_json(ags_dep_file)
 
             if packages_to_install:
                 try:
@@ -352,28 +360,38 @@ class FoolishDeployer:
                     except Exception as ce: print(f"Custom command failed: {expanded_cmd} -> {ce}")
 
             #[GUI COMPONENTS] [D]
-            # Waybar (Top & Bottom Provisioning)
-            if WAYBAR_SYS_DIR.exists(): shutil.rmtree(WAYBAR_SYS_DIR)
-            WAYBAR_SYS_DIR.mkdir(parents=True, exist_ok=True)
-            
-            layout_waybar_dir = self.find_dir_flexible(target_layout_dir, "waybar") or target_layout_dir
-            theme_waybar_dir = self.find_dir_flexible(target_theme_dir, "waybar") or target_theme_dir
-            theme_colours = self.find_file_flexible(target_theme_dir, "colours.css")
-            
-            # Top Waybar
-            top_config = self.find_file_flexible(layout_waybar_dir, "top_config")
-            top_style = self.find_file_flexible(theme_waybar_dir, "top_style.css") or self.find_file_flexible(theme_waybar_dir, "top_style")
-            if top_config and top_config.exists(): shutil.copy(top_config, WAYBAR_SYS_DIR / "top_config")
-            if top_style and top_style.exists(): shutil.copy(top_style, WAYBAR_SYS_DIR / "top_style.css")
-            
-            # Bottom Waybar
-            bottom_config = self.find_file_flexible(layout_waybar_dir, "bottom_config")
-            bottom_style = self.find_file_flexible(theme_waybar_dir, "bottom_style.css") or self.find_file_flexible(theme_waybar_dir, "bottom_style")
-            if bottom_config and bottom_config.exists(): shutil.copy(bottom_config, WAYBAR_SYS_DIR / "bottom_config")
-            if bottom_style and bottom_style.exists(): shutil.copy(bottom_style, WAYBAR_SYS_DIR / "bottom_style.css")
+            # AGS (Aylur's GTK Shell Provisioning)
+            if AGS_SYS_DIR.exists(): shutil.rmtree(AGS_SYS_DIR)
+            AGS_SYS_DIR.mkdir(parents=True, exist_ok=True)
 
-            if theme_colours and theme_colours.exists(): 
-                shutil.copy(theme_colours, WAYBAR_SYS_DIR / "colours.css")
+            layout_ags_dir = self.find_dir_flexible(target_layout_dir, "ags")
+            theme_ags_dir = self.find_dir_flexible(target_theme_dir, "ags")
+
+            # 1. Copy layout AGS structure if present
+            if layout_ags_dir and layout_ags_dir.exists():
+                shutil.copytree(layout_ags_dir, AGS_SYS_DIR, dirs_exist_ok=True)
+
+            # 2. Copy/Overlay theme AGS structure if present
+            if theme_ags_dir and theme_ags_dir.exists():
+                shutil.copytree(theme_ags_dir, AGS_SYS_DIR, dirs_exist_ok=True)
+
+            # 3. Check for standalone entry-points/configs if no dedicated 'ags' folder was found
+            if not layout_ags_dir and not theme_ags_dir:
+                for ags_file in ["config.js", "main.ts", "app.ts", "config.json", "style.css"]:
+                    found_file = self.find_file_flexible(target_layout_dir, ags_file) or self.find_file_flexible(target_theme_dir, ags_file)
+                    if found_file and found_file.exists():
+                        shutil.copy(found_file, AGS_SYS_DIR / found_file.name)
+
+            # 4. Copy color/theme stylesheet overrides into AGS dir
+            theme_colours = (self.find_file_flexible(target_theme_dir, "colours.css") or 
+                             self.find_file_flexible(target_theme_dir, "colors.css") or 
+                             self.find_file_flexible(target_theme_dir, "style.css"))
+            if theme_colours and theme_colours.exists():
+                shutil.copy(theme_colours, AGS_SYS_DIR / theme_colours.name)
+
+            # Restart AGS process if already running
+            if shutil.which("ags"):
+                subprocess.run("ags quit || killall ags", shell=True, stderr=subprocess.DEVNULL)
 
             # Wofi
             if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
@@ -437,7 +455,6 @@ return {{
                 shutil.copytree(theme_ly_dir, LY_SYS_DIR, dirs_exist_ok=True)
                 ly_conf = self.find_file_flexible(theme_ly_dir, "config.ini")
                 
-                # MODIFIED: Triggers sudo internally so Ly config bypasses write-permission checks
                 if ly_conf and ly_conf.exists():
                     print("\n[!] Elevated permissions required for Ly TUI. Please check the terminal for sudo prompt...")
                     try:
