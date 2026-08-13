@@ -3,6 +3,8 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { exec, execAsync } from "ags/process"
 import { createPoll } from "ags/time"
 import GLib from "gi://GLib"
+// Added skipNext and skipPrev to the imports!
+import { toggleIdleMusic, subscribeToIdleMusic, skipNext, skipPrev } from "../Idle_Music"
 
 const isLaptop = (() => {
   try {
@@ -332,6 +334,7 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
     >
       <centerbox cssName="centerbox">
         <box $type="start" class="modules-left">
+
           <button
             class="custom-python-script"
             tooltipText="Launch Foolish Alteration"
@@ -342,6 +345,79 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
           >
             <label label="[FOOLISH] [ALTERATION]" />
           </button>
+
+          {/* --- SLIDING HOVER MENU MUSIC CONTROLS --- */}
+          {(() => {
+            const mainLbl = new Gtk.Label({ label: "[MUSIC: ON]" });
+
+            const songLbl = new Gtk.Label({ label: "Loading..." });
+            // Add a little margin to the song text so it breathes
+            songLbl.set_margin_start(8);
+            songLbl.set_margin_end(8);
+
+            const prevBtn = new Gtk.Button({ child: new Gtk.Label({ label: " |< " }) });
+            prevBtn.connect("clicked", () => skipPrev());
+            prevBtn.set_has_frame(false);
+            prevBtn.add_css_class("flat");
+
+            const nextBtn = new Gtk.Button({ child: new Gtk.Label({ label: " >| " }) });
+            nextBtn.connect("clicked", () => skipNext());
+            nextBtn.set_has_frame(false);
+            nextBtn.add_css_class("flat");
+
+            const controlsBox = new Gtk.Box({});
+            controlsBox.append(prevBtn);
+            controlsBox.append(songLbl);
+            controlsBox.append(nextBtn);
+
+            // A Revealer lets the controls hide away and smoothly slide out when hovered
+            const revealer = new Gtk.Revealer({
+              transitionType: Gtk.RevealerTransitionType.SLIDE_RIGHT,
+              child: controlsBox
+            });
+
+            const toggleBtn = new Gtk.Button({
+              child: mainLbl,
+              tooltipText: "Toggle Background Idle Music"
+            });
+            toggleBtn.connect("clicked", () => toggleIdleMusic());
+            toggleBtn.set_has_frame(false);
+            toggleBtn.add_css_class("flat");
+
+            let isMusicActive = false;
+
+            subscribeToIdleMusic((isRunning, song) => {
+              isMusicActive = isRunning;
+              mainLbl.label = isRunning ? "[MUSIC: ON]" : "[MUSIC: OFF]";
+
+              // Clean up super long song names so it doesn't stretch your bar off the screen
+              const displaySong = song.length > 35 ? song.substring(0, 32) + "..." : song;
+              songLbl.label = displaySong || "";
+
+              // If it gets turned off while hovered, gently hide the controls
+              if (!isRunning) revealer.reveal_child = false;
+            });
+
+            // Put everything into a master container 
+            const container = new Gtk.Box({});
+            container.append(toggleBtn);
+            container.append(revealer);
+
+            // Attach a hover controller to detect when your mouse enters or leaves the container area
+            const motion = new Gtk.EventControllerMotion();
+            motion.connect("enter", () => {
+              // Only slide out the controls if the music is currently turned ON
+              if (isMusicActive) revealer.reveal_child = true;
+            });
+            motion.connect("leave", () => {
+              revealer.reveal_child = false;
+            });
+            container.add_controller(motion);
+
+            return container;
+          })()}
+          {/* --- END MUSIC CONTROLS --- */}
+
         </box>
 
         {taskbarBox}
