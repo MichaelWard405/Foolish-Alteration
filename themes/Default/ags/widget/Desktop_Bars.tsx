@@ -335,7 +335,10 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
           <button
             class="custom-python-script"
             tooltipText="Launch Foolish Alteration"
-            onClicked={() => execAsync("kitty --hold -e python ~/Foolish-Alteration/Foolish_Alteration.py").catch(print)}
+            onClicked={() => {
+              const home = GLib.get_home_dir();
+              execAsync(["kitty", "--hold", "-e", "python", `${home}/Foolish-Alteration/Foolish_Alteration.py`]).catch(print);
+            }}
           >
             <label label="[FOOLISH] [ALTERATION]" />
           </button>
