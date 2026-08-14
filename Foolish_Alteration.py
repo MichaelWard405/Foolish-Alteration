@@ -392,6 +392,20 @@ class FoolishDeployer:
             # Restart AGS process if already running
             if shutil.which("ags"):
                 subprocess.run("ags quit || killall ags", shell=True, stderr=subprocess.DEVNULL)
+                
+            # 5. --- NEW IDLE MUSIC PROVISIONING ---
+            MUSIC_IDLE_SYS_DIR = HOME_DIR / "Music" / "Idle"
+            theme_music_dir = target_theme_dir / "ags" / "Music" / "Idle"
+
+            # If the theme contains an ags/Music/Idle folder, copy its contents!
+            if theme_music_dir.exists() and theme_music_dir.is_dir():
+                # Wipe the old system music folder clean to prevent theme tracks from mixing
+                if MUSIC_IDLE_SYS_DIR.exists():
+                    shutil.rmtree(MUSIC_IDLE_SYS_DIR)
+                    
+                MUSIC_IDLE_SYS_DIR.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(theme_music_dir, MUSIC_IDLE_SYS_DIR, dirs_exist_ok=True)
+            # --------------------------------------
 
             # Wofi
             if WOFI_SYS_DIR.exists(): shutil.rmtree(WOFI_SYS_DIR)
