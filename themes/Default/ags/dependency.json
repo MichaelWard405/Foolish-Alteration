@@ -2,7 +2,8 @@
   "packages": [
     "meson",
     "json-glib",
-    "gobject-introspection"
+    "gobject-introspection",
+    "socat"
   ],
   "flatpak": [],
   "commands": [
