@@ -150,3 +150,80 @@ popover modelbutton {
     color: #ff6b6b;
   }
 }
+
+/* ==========================================================================
+   APP LAUNCHER STYLING
+   ========================================================================== */
+.launcher-window {
+  background-color: rgba(20, 17, 17, 0.98);
+  border: 2px solid #ff6b6b;
+  border-radius: 8px;
+  box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.7);
+}
+
+.launcher-box {
+  padding: 20px;
+}
+
+.launcher-search {
+  font-size: 1.3em;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #f4eaea;
+  border: 1px solid #857070;
+  border-radius: 5px;
+}
+
+.launcher-search:focus {
+  border-color: #ff6b6b;
+}
+
+.launcher-scroll {
+  min-width: 450px;
+  min-height: 400px;
+}
+
+.app-button {
+  padding: 12px;
+  border-radius: 5px;
+  transition: all 0.2s ease;
+}
+
+.app-button:hover,
+.app-button:focus {
+  background-color: rgba(255, 107, 107, 0.15);
+}
+
+.app-name {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #f4eaea;
+}
+
+.app-desc {
+  font-size: 0.9em;
+  color: #857070;
+}
+
+.fav-button {
+  padding: 0 10px;
+  background: transparent;
+  color: #857070;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.fav-button:hover {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.fav-active {
+  color: #ffb37b;
+  font-weight: bold;
+}
+
+.fav-inactive {
+  color: #857070;
+}
