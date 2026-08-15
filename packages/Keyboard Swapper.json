@@ -3,7 +3,10 @@
   "Packages": [
     "fcitx5-im",
     "fcitx5-mozc",
-    "jq"
+    "jq",
+    "noto-fonts",
+    "noto-fonts-cjk",
+    "noto-fonts-emoji"
   ],
   "Commands": [
     "echo 'input type:keyboard xkb_layout \"us,ru\"' >> ~/.config/sway/SwayVariables.conf",
