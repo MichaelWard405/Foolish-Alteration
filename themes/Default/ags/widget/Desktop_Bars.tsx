@@ -337,9 +337,14 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
     execAsync("swaymsg -t get_inputs").then(out => {
       try {
         const inputs = JSON.parse(out || "[]");
-        const kb = inputs.find((i: any) => i.type === "keyboard" && i.xkb_layout_names);
 
-        // If there is more than 1 layout configured on the system, make the button visible!
+        // 1. Filter out EVERYTHING except keyboards
+        const kbs = inputs.filter((i: any) => i.type === "keyboard" && i.xkb_layout_names);
+
+        // 2. Ignore "ghost" keyboards (like power buttons) and find the one that actually has your 2+ layouts
+        const kb = kbs.find((i: any) => i.xkb_layout_names.length > 1) || kbs[0];
+
+        // 3. If a multi-layout keyboard exists, reveal the button!
         if (kb && kb.xkb_layout_names && kb.xkb_layout_names.length > 1) {
           kbBtn.visible = true;
           const active = kb.xkb_active_layout_name || "";
