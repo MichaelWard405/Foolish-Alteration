@@ -28,21 +28,6 @@ const cpu = createPoll("CPU: 0%", 2000, "sh -c \"top -bn2 -d 0.1 | grep 'Cpu(s)'
 const battery = isLaptop ? createPoll("BAT: 100%", 5000, "sh -c \"cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -n 1 | awk '{print \\\"BAT: \\\"$1\\\"%\\\"}' || echo \\\"BAT: 100%\\\"\"") : null
 const pwrMode = isLaptop ? createPoll("PWR: balanced", 5000, "sh -c \"powerprofilesctl get 2>/dev/null | awk '{print \\\"PWR: \\\"$1}' || echo \\\"PWR: balanced\\\"\"") : null
 
-// --- KEYBOARD LAYOUT POLL ---
-const keyboardLayout = createPoll(
-  "[KB: ENG]",
-  500,
-  `sh -c "swaymsg -t get_inputs | jq -r '[.[] | select(.type == \\"keyboard\\" and .xkb_active_layout_name != null)][0].xkb_active_layout_name' | awk '{
-    if (/English/) print \\"[KB: ENG]\\";
-    else if (/Japanese/) print \\"[KB: JP]\\";
-    else if (/German/) print \\"[KB: DE]\\";
-    else if (/French/) print \\"[KB: FR]\\";
-    else if (/Spanish/) print \\"[KB: ES]\\";
-    else if (NF>0) print \\"[KB: \\" toupper(substr(\\$0, 1, 3)) \\"]\\";
-    else print \\"[KB: --]\\";
-  }'"`
-)
-
 // ==============================================================================
 // TOP BAR
 // ==============================================================================
@@ -326,9 +311,61 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
     </box>
   ) as any;
 
+  // ==============================================================================
+  // RIGHT SIDE MODULES (Keyboard, Scratchpad, Drawer)
+  // ==============================================================================
   const rightBox = (
     <box $type="end" class="modules-right" />
   ) as any;
+
+  // --- KEYBOARD LAYOUT SWITCHER ---
+  const kbLabel = new Gtk.Label({ label: "[KB: ENG]" });
+  const kbBtn = new Gtk.Button({
+    child: kbLabel,
+    tooltipText: "Click to switch keyboard layout",
+    visible: false, // Automatically hidden by default
+  });
+  kbBtn.add_css_class("keyboard-layout");
+  kbBtn.add_css_class("flat");
+  kbBtn.set_has_frame(false);
+
+  kbBtn.connect("clicked", () => {
+    execAsync("swaymsg input type:keyboard xkb_switch_layout next").catch(print);
+  });
+
+  const updateKeyboard = () => {
+    execAsync("swaymsg -t get_inputs").then(out => {
+      try {
+        const inputs = JSON.parse(out || "[]");
+        const kb = inputs.find((i: any) => i.type === "keyboard" && i.xkb_layout_names);
+
+        // If there is more than 1 layout configured on the system, make the button visible!
+        if (kb && kb.xkb_layout_names && kb.xkb_layout_names.length > 1) {
+          kbBtn.visible = true;
+          const active = kb.xkb_active_layout_name || "";
+
+          if (active.includes("English")) kbLabel.label = "[KB: ENG]";
+          else if (active.includes("Japanese")) kbLabel.label = "[KB: JP]";
+          else if (active.includes("German")) kbLabel.label = "[KB: DE]";
+          else if (active.includes("French")) kbLabel.label = "[KB: FR]";
+          else if (active.includes("Spanish")) kbLabel.label = "[KB: ES]";
+          else kbLabel.label = `[KB: ${active.substring(0, 3).toUpperCase()}]`;
+        } else {
+          kbBtn.visible = false;
+        }
+      } catch (e) { }
+    }).catch(() => { });
+  };
+
+  updateKeyboard();
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+    updateKeyboard();
+    return GLib.SOURCE_CONTINUE;
+  });
+
+  rightBox.append(kbBtn);
+  // --------------------------------
+
   rightBox.append(scratchpadBtn);
   rightBox.append(drawerBox);
 
@@ -421,16 +458,6 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
           })()}
           {/* --- END MUSIC CONTROLS --- */}
 
-          {/* --- KEYBOARD LAYOUT SWITCHER --- */}
-          <button
-            class="keyboard-layout flat"
-            tooltipText="Click to switch keyboard layout"
-            onClicked={() => execAsync("swaymsg input type:keyboard xkb_switch_layout next").catch(print)}
-          >
-            <label label={keyboardLayout} />
-          </button>
-          {/* --- END KEYBOARD LAYOUT SWITCHER --- */}
-
         </box>
 
         {taskbarBox}
@@ -439,4 +466,3 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
     </window>
   )
 }
-

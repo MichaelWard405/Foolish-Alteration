@@ -1,9 +1,8 @@
 {
   "Flatpak": [],
-  "Packages": [
-    "jq"
-  ],
+  "Packages": [],
   "Commands": [
+    "echo 'input type:keyboard { xkb_layout \"us,jp\" }' >> ~/.config/sway/SwayVariables.conf",
     "swaymsg input type:keyboard xkb_layout 'us,jp'"
   ]
 }
