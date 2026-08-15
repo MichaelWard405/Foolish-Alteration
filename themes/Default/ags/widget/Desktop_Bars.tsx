@@ -312,69 +312,123 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
   ) as any;
 
   // ==============================================================================
-  // RIGHT SIDE MODULES (Hardware Layout Switcher, Scratchpad, Drawer)
+  // RIGHT SIDE MODULES (Master Keyboard Switcher, Scratchpad, Drawer)
   // ==============================================================================
   const rightBox = (
     <box $type="end" class="modules-right" />
   ) as any;
 
-  // --- PHYSICAL KEYBOARD LAYOUT SWITCHER ---
+  // --- MASTER KEYBOARD CYCLER (Controls both Layouts AND Japanese IME) ---
   const kbLabel = new Gtk.Label({ label: "[KB: EN]" });
   const kbBtn = new Gtk.Button({
     child: kbLabel,
-    tooltipText: "Click to switch physical keyboard layout",
-    visible: false, // Automatically hidden by default if only 1 layout exists
+    tooltipText: "Click to cycle languages (English -> Russian -> Japanese)",
+    visible: false, // Automatically hidden if you only have 1 language
   });
   kbBtn.add_css_class("keyboard-layout");
   kbBtn.add_css_class("flat");
   kbBtn.set_has_frame(false);
 
-  // When clicked, cycle to the next layout in Sway
+  // The Master Cycle Logic
   kbBtn.connect("clicked", () => {
-    execAsync("swaymsg input type:keyboard xkb_switch_layout next")
-      .then(() => updateKeyboard())
-      .catch(print);
-  });
-
-  const updateKeyboard = () => {
-    execAsync("swaymsg -t get_inputs").then(out => {
+    (async () => {
       try {
+        let isFcitxActive = false;
+        let isFcitxInstalled = false;
+
+        // 1. Check if Japanese (Fcitx5) is installed and active
+        try {
+          const fcitxState = await execAsync("fcitx5-remote");
+          isFcitxInstalled = true;
+          isFcitxActive = (fcitxState.trim() === "2"); // 2 means actively translating
+        } catch (e) { }
+
+        // 2. Get hardware layouts (English, Russian, etc.)
+        const out = await execAsync("swaymsg -t get_inputs");
         const inputs = JSON.parse(out || "[]");
-
-        // 1. Filter for real keyboards with multiple layouts configured
         const kbs = inputs.filter((i: any) => i.type === "keyboard" && i.xkb_layout_names);
-        const kb = kbs.find((i: any) => i.xkb_layout_names.length > 1);
+        const kb = kbs.find((i: any) => i.xkb_layout_names.length > 1) || kbs[0];
 
-        // 2. If a multi-layout keyboard is detected, reveal the button!
-        if (kb && kb.xkb_layout_names && kb.xkb_layout_names.length > 1) {
-          kbBtn.visible = true;
-          const active = kb.xkb_active_layout_name || "Unknown";
+        const layouts = (kb && kb.xkb_layout_names) ? kb.xkb_layout_names : [];
+        const activeIdx = (kb && kb.xkb_active_layout_index !== undefined) ? kb.xkb_active_layout_index : 0;
 
-          // Dictionary for common clean abbreviations
-          const layoutMap: Record<string, string> = {
-            "English": "EN",
-            "Japanese": "JP",
-            "Russian": "RU",
-            "German": "DE",
-            "French": "FR",
-            "Spanish": "ES"
-          };
-
-          // Fallback: Use the first 2 letters capitalized (e.g. "Italian" -> "IT")
-          let tag = active.substring(0, 2).toUpperCase();
-          for (const [key, val] of Object.entries(layoutMap)) {
-            if (active.includes(key)) {
-              tag = val;
-              break;
+        // 3. Execute the Hybrid Swap
+        if (isFcitxActive) {
+          // If we are currently in Japanese, turn it OFF and return to English (Layout 0)
+          await execAsync("fcitx5-remote -c");
+          await execAsync("swaymsg input type:keyboard xkb_switch_layout 0");
+        } else {
+          // If not in Japanese, move to the next hardware layout (e.g., to Russian)
+          if (layouts.length > 1 && activeIdx < layouts.length - 1) {
+            await execAsync(`swaymsg input type:keyboard xkb_switch_layout ${activeIdx + 1}`);
+          } else {
+            // We reached the end of the hardware layouts (e.g., past Russian). 
+            if (isFcitxInstalled) {
+              // Time for Japanese! Swap hardware back to English base, and turn IME ON
+              await execAsync("swaymsg input type:keyboard xkb_switch_layout 0");
+              await execAsync("fcitx5-remote -o");
+            } else if (layouts.length > 1) {
+              // If Fcitx isn't installed, just loop back to English
+              await execAsync("swaymsg input type:keyboard xkb_switch_layout 0");
             }
           }
-
-          kbLabel.label = `[KB: ${tag}]`;
-        } else {
-          kbBtn.visible = false;
         }
+        updateKeyboard();
+      } catch (err) {
+        print("Keyboard cycle error: " + err);
+      }
+    })();
+  });
+
+  // The UI Poller
+  const updateKeyboard = async () => {
+    try {
+      let isFcitxInstalled = false;
+      let isFcitxActive = false;
+
+      try {
+        const fcitxState = await execAsync("fcitx5-remote");
+        isFcitxInstalled = true;
+        isFcitxActive = (fcitxState.trim() === "2");
       } catch (e) { }
-    }).catch(() => { });
+
+      // If Japanese engine is on, override the button text immediately
+      if (isFcitxActive) {
+        kbBtn.visible = true;
+        kbLabel.label = "[KB: JP]";
+        return;
+      }
+
+      // Otherwise, show the hardware layout (English, Russian, etc.)
+      const out = await execAsync("swaymsg -t get_inputs");
+      const inputs = JSON.parse(out || "[]");
+      const kbs = inputs.filter((i: any) => i.type === "keyboard" && i.xkb_layout_names);
+      const kb = kbs.find((i: any) => i.xkb_layout_names.length > 1) || kbs[0];
+
+      if ((kb && kb.xkb_layout_names && kb.xkb_layout_names.length > 1) || isFcitxInstalled) {
+        kbBtn.visible = true;
+        const active = (kb && kb.xkb_active_layout_name) ? kb.xkb_active_layout_name : "Unknown";
+
+        const layoutMap: Record<string, string> = {
+          "English": "EN",
+          "Russian": "RU",
+          "German": "DE",
+          "French": "FR",
+          "Spanish": "ES"
+        };
+
+        let tag = active.substring(0, 2).toUpperCase();
+        for (const [key, val] of Object.entries(layoutMap)) {
+          if (active.includes(key)) {
+            tag = val;
+            break;
+          }
+        }
+        kbLabel.label = `[KB: ${tag}]`;
+      } else {
+        kbBtn.visible = false;
+      }
+    } catch (err) { }
   };
 
   updateKeyboard();

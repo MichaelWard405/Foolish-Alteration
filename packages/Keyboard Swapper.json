@@ -1,8 +1,29 @@
 {
   "Flatpak": [],
-  "Packages": [],
+  "Packages": [
+    "fcitx5-im",
+    "fcitx5-mozc",
+    "jq"
+  ],
   "Commands": [
-    "echo 'input type:keyboard xkb_layout \"us,jp,ru\"' >> ~/.config/sway/SwayVariables.conf",
-    "swaymsg input type:keyboard xkb_layout 'us,jp,ru'"
+    "echo 'input type:keyboard xkb_layout \"us,ru\"' >> ~/.config/sway/SwayVariables.conf",
+    "swaymsg input type:keyboard xkb_layout 'us,ru'",
+    "echo 'GTK_IM_MODULE=fcitx' | sudo tee -a /etc/environment",
+    "echo 'QT_IM_MODULE=fcitx' | sudo tee -a /etc/environment",
+    "echo 'XMODIFIERS=@im=fcitx' | sudo tee -a /etc/environment",
+    "echo 'exec_always fcitx5 -d --replace' >> ~/.config/sway/Foolish_Auto_Starts.conf",
+    "mkdir -p ~/.config/fcitx5",
+    "echo '[Groups/0]' > ~/.config/fcitx5/profile",
+    "echo 'Name=Default' >> ~/.config/fcitx5/profile",
+    "echo 'Default Layout=us' >> ~/.config/fcitx5/profile",
+    "echo 'DefaultIM=keyboard-us' >> ~/.config/fcitx5/profile",
+    "echo '[Groups/0/Items/0]' >> ~/.config/fcitx5/profile",
+    "echo 'Name=keyboard-us' >> ~/.config/fcitx5/profile",
+    "echo 'Layout=' >> ~/.config/fcitx5/profile",
+    "echo '[Groups/0/Items/1]' >> ~/.config/fcitx5/profile",
+    "echo 'Name=mozc' >> ~/.config/fcitx5/profile",
+    "echo 'Layout=' >> ~/.config/fcitx5/profile",
+    "echo '[GroupOrder]' >> ~/.config/fcitx5/profile",
+    "echo '0=Default' >> ~/.config/fcitx5/profile"
   ]
 }
