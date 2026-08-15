@@ -312,25 +312,28 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
   ) as any;
 
   // ==============================================================================
-  // RIGHT SIDE MODULES (Keyboard, Scratchpad, Drawer)
+  // RIGHT SIDE MODULES (Hardware Layout Switcher, Scratchpad, Drawer)
   // ==============================================================================
   const rightBox = (
     <box $type="end" class="modules-right" />
   ) as any;
 
-  // --- KEYBOARD LAYOUT SWITCHER ---
-  const kbLabel = new Gtk.Label({ label: "[KB: ENG]" });
+  // --- PHYSICAL KEYBOARD LAYOUT SWITCHER ---
+  const kbLabel = new Gtk.Label({ label: "[KB: EN]" });
   const kbBtn = new Gtk.Button({
     child: kbLabel,
-    tooltipText: "Click to switch keyboard layout",
-    visible: false, // Automatically hidden by default
+    tooltipText: "Click to switch physical keyboard layout",
+    visible: false, // Automatically hidden by default if only 1 layout exists
   });
   kbBtn.add_css_class("keyboard-layout");
   kbBtn.add_css_class("flat");
   kbBtn.set_has_frame(false);
 
+  // When clicked, cycle to the next layout in Sway
   kbBtn.connect("clicked", () => {
-    execAsync("swaymsg input type:keyboard xkb_switch_layout next").catch(print);
+    execAsync("swaymsg input type:keyboard xkb_switch_layout next")
+      .then(() => updateKeyboard())
+      .catch(print);
   });
 
   const updateKeyboard = () => {
@@ -338,23 +341,35 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
       try {
         const inputs = JSON.parse(out || "[]");
 
-        // 1. Filter out EVERYTHING except keyboards
+        // 1. Filter for real keyboards with multiple layouts configured
         const kbs = inputs.filter((i: any) => i.type === "keyboard" && i.xkb_layout_names);
+        const kb = kbs.find((i: any) => i.xkb_layout_names.length > 1);
 
-        // 2. Ignore "ghost" keyboards (like power buttons) and find the one that actually has your 2+ layouts
-        const kb = kbs.find((i: any) => i.xkb_layout_names.length > 1) || kbs[0];
-
-        // 3. If a multi-layout keyboard exists, reveal the button!
+        // 2. If a multi-layout keyboard is detected, reveal the button!
         if (kb && kb.xkb_layout_names && kb.xkb_layout_names.length > 1) {
           kbBtn.visible = true;
-          const active = kb.xkb_active_layout_name || "";
+          const active = kb.xkb_active_layout_name || "Unknown";
 
-          if (active.includes("English")) kbLabel.label = "[KB: ENG]";
-          else if (active.includes("Japanese")) kbLabel.label = "[KB: JP]";
-          else if (active.includes("German")) kbLabel.label = "[KB: DE]";
-          else if (active.includes("French")) kbLabel.label = "[KB: FR]";
-          else if (active.includes("Spanish")) kbLabel.label = "[KB: ES]";
-          else kbLabel.label = `[KB: ${active.substring(0, 3).toUpperCase()}]`;
+          // Dictionary for common clean abbreviations
+          const layoutMap: Record<string, string> = {
+            "English": "EN",
+            "Japanese": "JP",
+            "Russian": "RU",
+            "German": "DE",
+            "French": "FR",
+            "Spanish": "ES"
+          };
+
+          // Fallback: Use the first 2 letters capitalized (e.g. "Italian" -> "IT")
+          let tag = active.substring(0, 2).toUpperCase();
+          for (const [key, val] of Object.entries(layoutMap)) {
+            if (active.includes(key)) {
+              tag = val;
+              break;
+            }
+          }
+
+          kbLabel.label = `[KB: ${tag}]`;
         } else {
           kbBtn.visible = false;
         }

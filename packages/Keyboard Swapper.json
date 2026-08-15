@@ -2,7 +2,7 @@
   "Flatpak": [],
   "Packages": [],
   "Commands": [
-    "echo 'input type:keyboard xkb_layout \"us,jp\"' >> ~/.config/sway/SwayVariables.conf",
-    "swaymsg input type:keyboard xkb_layout 'us,jp'"
+    "echo 'input type:keyboard xkb_layout \"us,jp,ru\"' >> ~/.config/sway/SwayVariables.conf",
+    "swaymsg input type:keyboard xkb_layout 'us,jp,ru'"
   ]
 }
