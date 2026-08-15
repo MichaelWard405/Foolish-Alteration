@@ -1,0 +1,9 @@
+{
+  "Flatpak": [],
+  "Packages": [
+    "jq"
+  ],
+  "Commands": [
+    "swaymsg input type:keyboard xkb_layout 'us,jp'"
+  ]
+}

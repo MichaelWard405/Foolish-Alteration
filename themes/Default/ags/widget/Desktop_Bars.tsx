@@ -3,7 +3,6 @@ import { Astal, Gtk, Gdk } from "ags/gtk4"
 import { exec, execAsync } from "ags/process"
 import { createPoll } from "ags/time"
 import GLib from "gi://GLib"
-// Added skipNext and skipPrev to the imports!
 import { toggleIdleMusic, subscribeToIdleMusic, skipNext, skipPrev } from "../Idle_Music"
 
 const isLaptop = (() => {
@@ -28,6 +27,21 @@ const cpu = createPoll("CPU: 0%", 2000, "sh -c \"top -bn2 -d 0.1 | grep 'Cpu(s)'
 
 const battery = isLaptop ? createPoll("BAT: 100%", 5000, "sh -c \"cat /sys/class/power_supply/BAT*/capacity 2>/dev/null | head -n 1 | awk '{print \\\"BAT: \\\"$1\\\"%\\\"}' || echo \\\"BAT: 100%\\\"\"") : null
 const pwrMode = isLaptop ? createPoll("PWR: balanced", 5000, "sh -c \"powerprofilesctl get 2>/dev/null | awk '{print \\\"PWR: \\\"$1}' || echo \\\"PWR: balanced\\\"\"") : null
+
+// --- KEYBOARD LAYOUT POLL ---
+const keyboardLayout = createPoll(
+  "[KB: ENG]",
+  500,
+  `sh -c "swaymsg -t get_inputs | jq -r '[.[] | select(.type == \\"keyboard\\" and .xkb_active_layout_name != null)][0].xkb_active_layout_name' | awk '{
+    if (/English/) print \\"[KB: ENG]\\";
+    else if (/Japanese/) print \\"[KB: JP]\\";
+    else if (/German/) print \\"[KB: DE]\\";
+    else if (/French/) print \\"[KB: FR]\\";
+    else if (/Spanish/) print \\"[KB: ES]\\";
+    else if (NF>0) print \\"[KB: \\" toupper(substr(\\$0, 1, 3)) \\"]\\";
+    else print \\"[KB: --]\\";
+  }'"`
+)
 
 // ==============================================================================
 // TOP BAR
@@ -157,7 +171,6 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
   const monitorName = gdkmonitor ? gdkmonitor.get_connector() || "" : "";
   const taskbarCmd = `sh -c "WS=\\$(swaymsg -t get_outputs | jq -r '.[] | select(.name == \\"${monitorName}\\") | .current_workspace'); [ -z \\"\\$WS\\" ] && WS=\\$(swaymsg -t get_outputs | jq -r '.[] | select(.focused == true) | .current_workspace'); swaymsg -t get_tree | jq -c --arg ws \\"\\$WS\\" '[.. | objects | select(.type == \\"workspace\\" and .name == \\$ws) | .. | objects | select((.type == \\"con\\" or .type == \\"floating_con\\") and (.app_id != null or .window_properties != null))]'"`;
 
-  // Manual overrides for apps with weird IDs
   const iconOverrides: Record<string, string> = {
     "vencorddesktop": "discord",
     "vencord-desktop": "discord",
@@ -172,8 +185,6 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
     execAsync(taskbarCmd).then(out => {
       try {
         const tasks = JSON.parse(out || "[]");
-
-        // Grab the active icon theme for the display to check if icons actually exist
         const display = Gdk.Display.get_default();
         const theme = display ? Gtk.IconTheme.get_for_display(display) : null;
 
@@ -188,14 +199,13 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
             const rawAppId = String(t.app_id || (t.window_properties ? t.window_properties.class : "")).toLowerCase();
             const mappedName = iconOverrides[rawAppId] || rawAppId;
 
-            let finalIcon = "application-x-executable"; // Default fallback
+            let finalIcon = "application-x-executable";
 
-            // Check if the theme physically has the icon before setting it
             if (theme) {
               if (theme.has_icon(mappedName)) finalIcon = mappedName;
               else if (theme.has_icon(rawAppId)) finalIcon = rawAppId;
               else if (theme.has_icon(`${rawAppId}-desktop`)) finalIcon = `${rawAppId}-desktop`;
-              else if (theme.has_icon("zen")) finalIcon = "zen"; // Catch-all for alternate Zen names
+              else if (theme.has_icon("zen")) finalIcon = "zen";
             }
 
             item.img.icon_name = finalIcon;
@@ -351,7 +361,6 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
             const mainLbl = new Gtk.Label({ label: "[MUSIC: ON]" });
 
             const songLbl = new Gtk.Label({ label: "Loading..." });
-            // Add a little margin to the song text so it breathes
             songLbl.set_margin_start(8);
             songLbl.set_margin_end(8);
 
@@ -370,7 +379,6 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
             controlsBox.append(songLbl);
             controlsBox.append(nextBtn);
 
-            // A Revealer lets the controls hide away and smoothly slide out when hovered
             const revealer = new Gtk.Revealer({
               transitionType: Gtk.RevealerTransitionType.SLIDE_RIGHT,
               child: controlsBox
@@ -390,23 +398,18 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
               isMusicActive = isRunning;
               mainLbl.label = isRunning ? "[MUSIC: ON]" : "[MUSIC: OFF]";
 
-              // Clean up super long song names so it doesn't stretch your bar off the screen
               const displaySong = song.length > 35 ? song.substring(0, 32) + "..." : song;
               songLbl.label = displaySong || "";
 
-              // If it gets turned off while hovered, gently hide the controls
               if (!isRunning) revealer.reveal_child = false;
             });
 
-            // Put everything into a master container 
             const container = new Gtk.Box({});
             container.append(toggleBtn);
             container.append(revealer);
 
-            // Attach a hover controller to detect when your mouse enters or leaves the container area
             const motion = new Gtk.EventControllerMotion();
             motion.connect("enter", () => {
-              // Only slide out the controls if the music is currently turned ON
               if (isMusicActive) revealer.reveal_child = true;
             });
             motion.connect("leave", () => {
@@ -418,6 +421,16 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
           })()}
           {/* --- END MUSIC CONTROLS --- */}
 
+          {/* --- KEYBOARD LAYOUT SWITCHER --- */}
+          <button
+            class="keyboard-layout flat"
+            tooltipText="Click to switch keyboard layout"
+            onClicked={() => execAsync("swaymsg input type:keyboard xkb_switch_layout next").catch(print)}
+          >
+            <label label={keyboardLayout} />
+          </button>
+          {/* --- END KEYBOARD LAYOUT SWITCHER --- */}
+
         </box>
 
         {taskbarBox}
@@ -426,3 +439,4 @@ export function BottomBar(gdkmonitor: Gdk.Monitor) {
     </window>
   )
 }
+
